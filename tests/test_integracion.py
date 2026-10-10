@@ -25,7 +25,7 @@ class LLMFalso:
 
 
 class AgenteInvestigadorFalso:
-    def invoke(self, entrada):
+    def invoke(self, entrada, config=None):
         return {
             "messages": [
                 AIMessage(
@@ -37,7 +37,7 @@ class AgenteInvestigadorFalso:
 
 
 class AgenteAnalistaFalso:
-    def invoke(self, entrada):
+    def invoke(self, entrada, config=None):
         return {"messages": [AIMessage(content="Resultado: 250. Cuenta: 2*15 + 6*20 + 4*25.")]}
 
 

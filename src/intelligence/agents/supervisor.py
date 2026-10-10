@@ -211,6 +211,20 @@ def nodo_supervisor(state, supervisor: Optional[Supervisor] = None) -> dict:
 
     supervisor = supervisor or Supervisor()
     decision = _corregir_decision(state, supervisor.decidir(state))
+
+    # El corte por pasos es la ÚLTIMA palabra. Antes no lo era y esto pasaba: el supervisor
+    # llegaba al máximo, devolvía FINISH, y la red de corrección lo pisaba para mandar de nuevo
+    # al especialista que "faltaba" -> el grafo giraba para siempre. Pasó de verdad, con el
+    # trabajo cortado por el tope de tiempo y 0 pasos cerrados.
+    if (state.get("pasos", 0) or 0) >= supervisor.max_pasos and decision.next != "FINISH":
+        decision = DecisionSupervisor(
+            next="FINISH",
+            razon=(
+                f"Se alcanzó el máximo de {supervisor.max_pasos} pasos: cierro y que la síntesis "
+                "responda con lo que hay."
+            ),
+        )
+
     return {
         "next_agent": decision.next,
         "instruccion": decision.instruccion,

@@ -54,6 +54,13 @@ def mensaje_de_error(exc: Exception) -> str:
         )
     if any(fragmento in nombre for fragmento in ERRORES_DE_RED):
         return f"no se pudo llegar al modelo por un problema de red ({nombre}). Detalle: {detalle}"
+    if "Recursion" in nombre or "recursion" in detalle.lower():
+        # Cortamos nosotros el trabajo del especialista (tope de vueltas): que se lea como lo que
+        # es, y no como una caída del modelo.
+        return (
+            "el especialista se pasó del máximo de vueltas de herramientas sin cerrar su tarea "
+            f"({nombre}). Conviene darle una instrucción más acotada."
+        )
     return f"falló la llamada al modelo ({nombre}): {detalle}"
 
 

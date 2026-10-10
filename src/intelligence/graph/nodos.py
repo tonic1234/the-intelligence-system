@@ -86,7 +86,13 @@ def _correr_especialista(agente, state, nombre: str) -> dict:
     # con un volcado de excepción) y el supervisor decide si lo manda de nuevo o cierra. Es
     # el mismo camino que ya usaba el validador para detectar un aporte inservible.
     try:
-        resultado = agente.invoke({"messages": [HumanMessage(content=contenido)]})
+        # Tope de vueltas adentro del propio agente: sin esto un especialista podía encadenar
+        # quince búsquedas con la misma pregunta y comerse el minuto y medio él solo. Con el
+        # tope, LangGraph corta, el error cae en el except de abajo y el aporte vuelve marcado
+        # como ERROR (el supervisor y el validador saben qué hacer con eso).
+        resultado = agente.invoke(
+            {"messages": [HumanMessage(content=contenido)]}, config={"recursion_limit": 12}
+        )
     except Exception as exc:  # noqa: BLE001 - se traduce a un mensaje legible, ver arriba
         respuesta = f"ERROR: {mensaje_de_error(exc)}"
     else:

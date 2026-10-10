@@ -22,7 +22,7 @@ class AgenteFalso:
         self.respuesta = respuesta
         self.llamadas = []
 
-    def invoke(self, entrada):
+    def invoke(self, entrada, config=None):
         self.llamadas.append(entrada)
         return {"messages": [AIMessage(content=self.respuesta)]}
 
@@ -120,7 +120,7 @@ class AgenteQueSeCae:
     def __init__(self, excepcion):
         self.excepcion = excepcion
 
-    def invoke(self, entrada):
+    def invoke(self, entrada, config=None):
         raise self.excepcion
 
 
