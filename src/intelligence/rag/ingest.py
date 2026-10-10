@@ -77,6 +77,22 @@ def verificar() -> None:
     print(f"namespace que usa este proyecto: '{namespace}'")
 
 
+def limpiar_namespace(store, namespace: str) -> None:
+    """Borra lo que haya en el namespace, tolerando que todavía no exista.
+
+    La primera vez que se corre el ingest el namespace no existe y Pinecone responde 404
+    ("Namespace not found"): eso no es un error, es que no había nada que limpiar. Cualquier otro
+    error sí sube, porque seguir con el índice a medio limpiar deja vectores viejos mezclados.
+    """
+
+    try:
+        store.delete(delete_all=True)
+    except Exception as error:  # noqa: BLE001
+        if "Namespace not found" not in str(error):
+            raise
+        print(f"  (el namespace '{namespace}' todavía no existía: no había nada que limpiar)")
+
+
 def main() -> None:
     if "--verificar" in sys.argv:
         verificar()
@@ -95,7 +111,7 @@ def main() -> None:
     store = PineconeVectorStore(index_name=indice, embedding=embeddings(), namespace=namespace)
 
     print(f"\nlimpiando el namespace '{namespace}' de {indice}...")
-    store.delete(delete_all=True)
+    limpiar_namespace(store, namespace)
 
     print("subiendo los chunks actuales...")
     subidos = store.add_documents(documents=chunks, ids=ids)

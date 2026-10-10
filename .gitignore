@@ -12,3 +12,6 @@ __pycache__/
 carga.json
 *.log
 screenshots/*.tmp
+
+# Registros de las corridas locales: no van al repo
+logs/

@@ -23,7 +23,7 @@ from intelligence.llm.cliente import texto
 from intelligence.graph.validacion import validar_estado
 
 # Cuántos especialistas como máximo antes de cerrar sí o sí.
-MAX_PASOS = 6
+MAX_PASOS = 4
 
 # Instrucciones de reemplazo cuando hay que corregir una delegación repetida. Están
 # escritas por oficio: al analista se le pide una CUENTA, no una búsqueda.

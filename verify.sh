@@ -50,9 +50,11 @@ echo "claves"
 versionados="$(git ls-files | grep -E "(^|/)\.env$|secret|credentials" || true)"
 if [ -z "$versionados" ]; then ok "no hay .env ni credenciales versionadas"; else fallo "hay archivos sensibles versionados: $versionados"; fi
 
-patrones="$(grep -rInE "(AQ\.[A-Za-z0-9_-]{20,}|pcsk_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9]{20,}|AIza[A-Za-z0-9_-]{20,})" \
-  --exclude-dir=.git --exclude-dir=.venv --exclude-dir=logs --exclude='*.md' . 2>/dev/null || true)"
-if [ -z "$patrones" ]; then ok "no encontré claves con forma de clave en el código"; else fallo "posible clave en el código:"$'\n'"$patrones"; fi
+# Busco claves con forma de clave en los archivos versionados. Excluyo el .env local a propósito
+# (es el lugar donde van las claves) y NUNCA imprimo el valor encontrado: sólo archivo y línea.
+patrones="$(git grep -InE "(AQ\.[A-Za-z0-9_-]{20,}|pcsk_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9]{20,}|AIza[A-Za-z0-9_-]{20,})" -- \
+  ':(exclude)*.md' ':(exclude).env.example' 2>/dev/null | cut -d: -f1,2 || true)"
+if [ -z "$patrones" ]; then ok "no encontré claves con forma de clave en los archivos versionados"; else fallo "posible clave versionada (archivo:línea):"$'\n'"$patrones"; fi
 
 # 4. sintaxis
 echo "sintaxis"
