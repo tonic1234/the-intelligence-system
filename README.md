@@ -92,20 +92,56 @@ verifiqué una por una contra IMPO, MTSS y BPS: no me quise confiar de la memori
 | `data/empresa/` | Reglamento interno, política de licencias, teletrabajo, seguridad de la información y onboarding de Nordika S.A. | Inventado (empresa ficticia) |
 | `data/legajos/` | Seis legajos de personas de esa empresa, con antigüedad, sueldo y situación de licencias | Inventado |
 
-Lo medí con tiktoken: 20 documentos, 9.999 palabras, 17.522 tokens y 47 fragmentos, con el chunking de 600
-tokens y 100 de solapamiento. El documento más corto tiene 363 tokens. Qué es real y qué no lo aclaro en
+Lo medí con tiktoken: 20 documentos, 19.409 tokens y 54 fragmentos, con el chunking de 600 tokens y 100
+de solapamiento. El documento más corto tiene 645 tokens, así que ninguno queda por debajo del umbral y
+todos se parten en más de un fragmento. Qué es real y qué no lo aclaro en
 [`data/README.md`](data/README.md).
+
+## Cómo se corre
+
+Necesita Redis andando y una clave de modelo en `.env`. La API y el worker son procesos distintos, así que
+van en dos terminales:
+
+```bash
+export PYTHONPATH=src                      # el código vive en src/
+export REDIS_URL=redis://127.0.0.1:6379/0
+
+uvicorn intelligence.main:app --port 8000  # terminal 1: la API
+python -m intelligence.worker              # terminal 2: el worker
+```
+
+Y se encola una consulta así:
+
+```bash
+curl -s -X POST localhost:8000/tareas -H 'content-type: application/json' \
+  -d '{"pregunta":"¿Cuántos días de licencia le corresponden a Ana Ferreira, que entró en 2016, y cuánto cobra de salario vacacional por esos días?"}'
+# {"job_id":"b685e9ddee6a","estado":"pendiente"}          <- contesta en 27 ms
+```
+
+Con el worker corriendo, esa consulta terminó así (es la salida real de la corrida, no un ejemplo escrito
+a mano):
+
+```
+estado: done | pasos: 2 | contribuciones: investigador, analista
+
+A Ana Ferreira le corresponden 22 días de licencia anual (20 días base + 2 por complemento de
+antigüedad), de acuerdo con los registros de su legajo. Ya gozó 10 días durante el cierre colectivo
+de enero, quedándole un saldo de 12 días.
+
+El salario vacacional equivale al 100 % del jornal líquido ($ 4.010 por día):
+  - por el total generado (22 días): $ 88.220
+  - por los 12 días pendientes:      $ 48.120
+```
 
 ## Qué falta
 
-Hoy el repo trae la configuración y el corpus. Me falta subir la recuperación híbrida, el cliente
-multi-proveedor, los agentes con el supervisor, el grafo con checkpointer y aprobación humana, la API con
-el worker y la cola, y las trazas. Cuando esté la API agrego el arranque con un solo comando y la tabla de
-las cinco corridas con costo y latencia.
+El sistema está completo y corre: recuperación híbrida, cliente multi-proveedor, agentes con supervisor,
+grafo con checkpointer y aprobación humana, API con worker y cola, y trazas. Me falta el arranque con un
+solo comando (Docker Compose y un `run.sh`), las cinco corridas con sus capturas y la tabla de costo y
+latencia, y las capturas del dashboard de Phoenix.
 
-Lo dejo dicho acá y no como sorpresa: el repo todavía no se levanta, porque todavía no hay punto de
-entrada. Prefiero que se lea así a que parezca que falta algo. Me tocó entregar cosas incompletas sin
-decirlo y no pienso repetirlo.
+Lo dejo dicho acá y no como sorpresa. Me tocó entregar cosas incompletas sin decirlo y no pienso
+repetirlo.
 
 ## Requisitos
 
@@ -129,7 +165,7 @@ Se saca en https://aistudio.google.com/apikey (tiene capa gratis).
 Si querés usar otro proveedor, cambiá LLM_PROVIDER (válidos: anthropic, gemini, openai).
 ```
 
-## Pruebas
+## Las pruebas (121, sin claves y sin red)
 
 ```bash
 python -m pytest tests -q
