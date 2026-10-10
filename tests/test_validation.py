@@ -175,3 +175,49 @@ def test_sin_pregunta_en_el_estado_exige_los_dos_dominios():
     from intelligence.graph.validacion import dominios_exigidos
 
     assert dominios_exigidos({"contribuciones": []}) == ["investigador", "analista"]
+
+
+# ---------------------------------------------------------------------------
+# El número de una ley NO es un pedido de cuenta
+# ---------------------------------------------------------------------------
+# Regresión del bucle más caro de todos: la pregunta "¿qué dice la Ley 12.590 sobre la licencia
+# anual...?" tiene un número (el de la ley), así que el patrón viejo exigía al analista. El
+# supervisor lo mandaba, el analista contestaba que no había nada que calcular, el validador no le
+# reconocía el aporte y el trabajo daba tres vueltas hasta que lo cerraba el corte por pasos.
+# Un número puede ser el de una norma, un año o una fecha: no alcanza para pedir una cuenta.
+
+
+def test_el_numero_de_una_ley_no_exige_al_analista():
+    estado = _estado_con_pregunta(
+        "¿Qué dice la Ley 12.590 sobre los días de licencia anual y qué pasa con los feriados que "
+        "caen en el medio?",
+        [contrib("investigador", APORTE_INVESTIGADOR)],
+    )
+
+    informe = validar_estado(estado)
+
+    assert informe["dominios_exigidos"] == ["investigador"]
+    assert informe["suficiente"] is True
+
+
+def test_una_fecha_o_un_año_tampoco_exige_al_analista():
+    estado = _estado_con_pregunta(
+        "¿Qué política interna rige desde el 1 de enero de 2026 para el teletrabajo?",
+        [contrib("investigador", APORTE_INVESTIGADOR)],
+    )
+
+    assert validar_estado(estado)["dominios_exigidos"] == ["investigador"]
+
+
+def test_preguntar_cuanto_cobra_o_le_corresponde_si_exige_al_analista():
+    """Las palabras que piden una cuenta sí alcanzan (y son las que usa la gente)."""
+
+    for pregunta in (
+        "¿Cuánto cobra de salario vacacional por esos días?",
+        "¿Cuántos días de licencia le corresponden a Bruno Cardozo, que entró en 2021?",
+        "¿Cuál es el monto total del aguinaldo?",
+    ):
+        estado = _estado_con_pregunta(pregunta, [contrib("investigador", APORTE_INVESTIGADOR)])
+        informe = validar_estado(estado)
+        assert informe["dominios_exigidos"] == ["investigador", "analista"], pregunta
+        assert informe["faltantes"] == ["analista"], pregunta

@@ -238,7 +238,7 @@ Se saca en https://aistudio.google.com/apikey (tiene capa gratis).
 Si querés usar otro proveedor, cambiá LLM_PROVIDER (válidos: anthropic, gemini, openai).
 ```
 
-## Las pruebas (137, sin claves y sin red)
+## Las pruebas (140, sin claves y sin red)
 
 ```bash
 python -m pytest tests -q

@@ -43,8 +43,30 @@ MARCAS_DE_ERROR = ["ERROR:", "Error al calcular", "No se encontró"]
 
 # Si la pregunta pide una cuenta, el analista es obligatorio. Si no la pide, exigirlo sería
 # pedirle al equipo un trabajo que no corresponde (y el flujo no cerraría nunca).
+#
+# OJO con este patrón: la primera versión consideraba pedido de cuenta a CUALQUIER dígito, y con eso
+# una pregunta informativa como "¿qué dice la Ley 12.590 sobre la licencia anual?" exigía al analista.
+# El supervisor lo mandaba, el analista contestaba (con razón) que no había ningún número para
+# calcular, y el trabajo daba tres vueltas hasta que lo cerraba el corte por pasos. Medido en una
+# corrida real. Por eso ahora se buscan las palabras que piden una cuenta, no los números sueltos
+# (un número puede ser el de una ley, un año o una fecha).
 PATRON_PEDIDO_DE_CUENTA = re.compile(
-    r"\d|cu[aá]nt|total|sum[ae]r|promedi|porcentaje|calcul|multiplic|divid|prorrat",
+    r"cu[aá]nt[oa]s?\b"
+    r"|total\b"
+    r"|sum[ae]r?\b"
+    r"|promedi"
+    r"|porcentaje\b"
+    r"|calcul"
+    r"|multiplic"
+    r"|divid"
+    r"|prorrat"
+    r"|correspond[ea]n?\b"
+    r"|cobr[aá]"
+    r"|monto\b"
+    r"|sueldo\b"
+    r"|salario\b"
+    r"|aguinaldo\b"
+    r"|indemnizaci[oó]n\b",
     re.IGNORECASE,
 )
 
