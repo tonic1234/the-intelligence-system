@@ -16,7 +16,7 @@ from fastapi.responses import JSONResponse
 
 from intelligence.worker.cola import ColaRedis, ahora
 from intelligence.api.esquemas import AprobacionIn, EstadoJob, InformeJob, TareaCreada, TareaIn
-from intelligence.observability.phoenix import activar_trazas, trazas_activas
+from intelligence.observability.phoenix import endpoint_configurado
 
 log = logging.getLogger(__name__)
 
@@ -106,7 +106,10 @@ def crear_app(cola: ColaRedis | None = None, ejecutor=None, instrumentar: bool =
             "redis": "ok" if viva else "sin_conexion",
             "modelo": os.getenv("GEMINI_MODEL", "gemini-flash-latest"),
             "pendientes": await cola.pendientes() if viva else None,
-            "trazas": trazas_activas(),
+            # Lo que se informa es si el sistema TIENE trazabilidad configurada (el worker es el
+            # que exporta los spans del grafo). Antes decía si ESTE proceso tenía la
+            # instrumentación activa, y con el endpoint configurado igual daba false.
+            "trazas": endpoint_configurado(),
         }
 
     return app

@@ -13,14 +13,11 @@ from __future__ import annotations
 from intelligence.api.api import crear_app
 from intelligence.arranque import preparar_arranque
 from intelligence.graph.ejecutor import EjecutorDelGrafo
-from intelligence.observability.phoenix import activar_trazas
 
 preparar_arranque()
 
-# La API también activa las trazas, aunque el grafo corra en el worker. No es por gusto: el
-# /health informa si el sistema está trazando, y con esto apagado acá decía "false" con Phoenix
-# configurado, que se lee como si no hubiera trazas. La instrumentación es sólo sobre LangChain,
-# así que a la API no le agrega ruido (no usa LangChain para atender pedidos).
-activar_trazas()
-
+# Ojo: la API NO activa la instrumentación a propósito. Las trazas las exporta el worker, que es
+# donde corre el grafo; instrumentar también acá llena el dashboard de spans de `GET /tareas/<id>`
+# (el polling del cliente) y entierra las trazas de los agentes. Me pasó al probarlo: 387 trazas
+# con el dashboard casi todo de consultas de estado.
 app = crear_app(ejecutor=EjecutorDelGrafo())
