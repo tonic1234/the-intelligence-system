@@ -1,0 +1,14 @@
+# Lo que NO se versiona: claves, entornos virtuales, cachés y resultados de corridas.
+# El repo lleva .env.example con los nombres de las variables, nunca los valores.
+
+.env
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+
+# Datos de corridas y temporales
+carga.json
+*.log
+screenshots/*.tmp
