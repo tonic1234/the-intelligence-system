@@ -164,11 +164,11 @@ proceso y Phoenix registrando. Salida cruda de `python scripts/escenarios.py`:
 
 | Escenario | Resultado | Tiempo | Pasos | Quién aportó |
 |---|---|---|---|---|
-| 1. una sola capa (consulta de ley) | `done` | 70,8 s | 4 | investigador, analista |
-| 2. dos dominios con cálculo | `done` | 51,4 s | 2 | investigador, analista |
-| 3. acción con efecto, la persona aprueba | `done` | 30,4 s | 1 | investigador |
-| 4. acción con efecto, la persona rechaza | `rechazado` | 6,1 s | 0 | — |
-| 5. consulta sin cobertura del corpus | `done` | 21,3 s | 0 | — |
+| 1. una sola capa (consulta de ley) | `done` | 55,0 s | 1 | investigador |
+| 2. dos dominios con cálculo | `done` | 48,5 s | 2 | investigador, analista |
+| 3. acción con efecto, la persona aprueba | `done` | 33,3 s | 1 | investigador |
+| 4. acción con efecto, la persona rechaza | `rechazado` | 3,0 s | 0 | — |
+| 5. consulta sin cobertura del corpus | `done` | 18,1 s | 0 | — |
 
 Tres cosas que muestran, y que son las que elijo mirar:
 
@@ -194,8 +194,9 @@ limpio antes de la sesión (si no, el p95 mezcla corridas viejas):
 | `03-latencia-costos.png` | La vista de métricas: el costo estimado, los percentiles de latencia (max, p50, p75, p90, p95, p99) y el consumo de tokens |
 | `04-api-docs.png` | La API documentada y navegable que trae FastAPI (`/docs`), con los cuatro endpoints y sus esquemas |
 
-Números leídos del dashboard después de las cinco corridas: **6 trazas**, **latencia P50 21 s**,
-**P99 1 m 9 s**, y en la traza abierta **costo $ 0,01 con latencia 19,5 s**.
+Números leídos del dashboard después de las cinco corridas: **6 trazas** (una por escenario más la del
+reanudado), **latencia P50 20,6 s** y **P99 53,3 s**. En la captura de la traza abierta se ve además el
+costo y la latencia de esa ejecución en particular.
 
 Dos notas honestas sobre estas métricas:
 
@@ -203,17 +204,25 @@ Dos notas honestas sobre estas métricas:
   la capa gratis de Gemini ese costo da **$ 0,00**, así que dejo las dos capturas: la de costo (con la
   línea en cero) y la de **tokens** (más de 40.000 en la sesión), que es la métrica que se mueve de
   verdad. Corriendo con un proveedor pago, esa misma captura muestra el costo real.
-- **El p95.** Con cinco corridas el p95 es prácticamente el máximo (el más lento fue 70,8 s). Por eso
+- **El p95.** Con cinco corridas el p95 es prácticamente el máximo (el más lento fue 55,0 s). Por eso
   también anoto el P50 y el P99 del dashboard, que es lo que se ve en la captura de métricas.
 
-## Lo que queda anotado
+## Lo que quedó afuera y lo que ajusté
 
-Nada de esto bloquea la entrega; lo dejo escrito porque lo vi y prefiero que esté dicho:
+Cuando corrí los cinco escenarios la primera vez, el escenario 1 tardaba 70,8 s y daba **cuatro pasos**:
+el supervisor mandaba tres veces al analista. El analista contestaba, con razón, "falta un número: no se
+especifica la cantidad de años", porque esa pregunta no pide ninguna cuenta. La culpa era del validador:
+el patrón que decide si la pregunta pide una cuenta consideraba pedido de cuenta a **cualquier dígito**,
+y "12.590" es el número de la ley.
 
-- En el escenario 1 el supervisor mandó **tres veces** al analista antes de cerrar: el validador no le
-  reconoció el aporte a la primera y el corte por pasos terminó cerrando el trabajo. La respuesta salió
-  bien, pero es lo próximo a afinar (que un aporte con la cuenta hecha cuente como aporte).
-- El costo con la capa gratis del modelo da cero, como expliqué arriba.
+Lo arreglé en el patrón (buscar las palabras que piden una cuenta, no los números sueltos) y no
+aflojando el criterio, que es la defensa contra aceptar promesas como trabajo hecho. Después del
+arreglo, el escenario 1 cierra en **1 paso y 55,0 s** con la misma respuesta. Tres pruebas de regresión
+cubren el caso: el número de una ley no exige al analista, una fecha tampoco, y "cuánto cobra" o "cuántos
+días le corresponden" sí.
+
+Sigue pendiente, y no lo tapo: **con la capa gratis del modelo el costo por ejecución es cero**, que es
+lo que muestra la captura de costo.
 
 
 ## Requisitos
