@@ -71,10 +71,22 @@ citar y para que la búsqueda pueda filtrar por capa.
 
 ## Observabilidad
 
-Cada nodo deja su traza en Arize Phoenix: prompt, respuesta, tokens, costo y latencia. La instrumentación
-va solo sobre LangChain y no sobre FastAPI. Si se instrumenta todo, el dashboard se llena de spans de
-`GET /tareas/<id>`, que es el polling del cliente, y las trazas de los agentes quedan enterradas. Lo
-descubrí mirando un dashboard lleno de consultas de estado y ni un solo span del supervisor.
+Cada nodo deja su traza en Arize Phoenix: prompt, respuesta, tokens, costo y latencia. La
+instrumentación va **solo en el worker**, que es el proceso donde corre el grafo, y solo sobre
+LangChain.
+
+Lo aprendí de dos maneras, las dos en corridas reales:
+
+- Si se instrumenta también **FastAPI**, el dashboard se llena de spans de `GET /tareas/<job_id>` (el
+  polling del cliente) y las trazas de los agentes quedan enterradas. Lo medí: 387 trazas en el
+  proyecto, casi todas de consultas de estado, y ni un solo span visible del supervisor sin filtrar.
+- Si la **API** activa la instrumentación sólo para que el `/health` diga "trazas: true", el efecto es
+  el mismo. El `/health` ahora informa otra cosa (si el sistema tiene la trazabilidad configurada), y
+  la API no toca la instrumentación.
+
+Y una práctica que ayuda a que los números signifiquen algo: **limpiar el historial de Phoenix antes de
+la sesión de pruebas**. El p95 se calcula sobre todas las trazas del proyecto, así que si quedan las de
+corridas viejas (o las de depuración), el número no es el de la corrida que estás midiendo.
 
 ## Decisiones que sostengo por un motivo
 

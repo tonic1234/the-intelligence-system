@@ -156,15 +156,65 @@ El salario vacacional equivale al 100 % del jornal líquido ($ 4.010 por día):
   - por los 12 días pendientes:      $ 48.120
 ```
 
-## Qué falta
+## Las cinco corridas
 
-El sistema está completo y corre: recuperación híbrida, cliente multi-proveedor, agentes con supervisor,
-grafo con checkpointer y aprobación humana, API con worker y cola, y trazas. Me falta el arranque con un
-solo comando (Docker Compose y un `run.sh`), las cinco corridas con sus capturas y la tabla de costo y
-latencia, y las capturas del dashboard de Phoenix.
+Lo que pide la consigna: al menos cinco pruebas del sistema con las trazas visibles. En vez de mandar
+cinco veces la misma consulta, va una corrida por escenario, contra la API real, con el worker en otro
+proceso y Phoenix registrando. Salida cruda de `python scripts/escenarios.py`:
 
-Lo dejo dicho acá y no como sorpresa. Me tocó entregar cosas incompletas sin decirlo y no pienso
-repetirlo.
+| Escenario | Resultado | Tiempo | Pasos | Quién aportó |
+|---|---|---|---|---|
+| 1. una sola capa (consulta de ley) | `done` | 70,8 s | 4 | investigador, analista |
+| 2. dos dominios con cálculo | `done` | 51,4 s | 2 | investigador, analista |
+| 3. acción con efecto, la persona aprueba | `done` | 30,4 s | 1 | investigador |
+| 4. acción con efecto, la persona rechaza | `rechazado` | 6,1 s | 0 | — |
+| 5. consulta sin cobertura del corpus | `done` | 21,3 s | 0 | — |
+
+Tres cosas que muestran, y que son las que elijo mirar:
+
+1. **La pausa funciona.** En el escenario 3 el trabajo quedó esperando aprobación con la instrucción a
+   la vista y **cero pasos ejecutados**, y siguió después del OK. En el 4, el rechazo cerró el trabajo
+   en 6 segundos.
+2. **La consulta sin cobertura no se inventa nada**: *"Actualmente no dispongo de los datos sobre el
+   costo de los pasajes a Miami para enero ni de recomendaciones específicas de hoteles (...) sin
+   inventar números"*.
+3. **El cálculo sale de la herramienta, no del modelo**: en el escenario 2 la respuesta trae los 21 días
+   de licencia de Bruno (20 de la ley más el día que agrega Nordika a los 3 años) y el salario vacacional
+   calculado con el jornal líquido de su legajo: 4.430 × 21 = **$ 93.030**.
+
+## Las capturas y los números del dashboard
+
+Las cuatro capturas están en [`screenshots/`](screenshots) y son del dashboard real, con el historial
+limpio antes de la sesión (si no, el p95 mezcla corridas viejas):
+
+| Captura | Qué muestra |
+|---|---|
+| `01-trazas.png` | Las seis trazas del proyecto, una por corrida más la de la prueba de la pausa |
+| `02-trazas-del-grafo.png` | Una traza abierta: el árbol con los nodos (`supervisor`, `aprobacion`, `validacion`, `sintesis`) y arriba el costo y la latencia de esa ejecución |
+| `03-latencia-costos.png` | La vista de métricas: el costo estimado, los percentiles de latencia (max, p50, p75, p90, p95, p99) y el consumo de tokens |
+| `04-api-docs.png` | La API documentada y navegable que trae FastAPI (`/docs`), con los cuatro endpoints y sus esquemas |
+
+Números leídos del dashboard después de las cinco corridas: **6 trazas**, **latencia P50 21 s**,
+**P99 1 m 9 s**, y en la traza abierta **costo $ 0,01 con latencia 19,5 s**.
+
+Dos notas honestas sobre estas métricas:
+
+- **El costo.** La consigna pide el costo por ejecución, que la plataforma calcula desde los tokens. Con
+  la capa gratis de Gemini ese costo da **$ 0,00**, así que dejo las dos capturas: la de costo (con la
+  línea en cero) y la de **tokens** (más de 40.000 en la sesión), que es la métrica que se mueve de
+  verdad. Corriendo con un proveedor pago, esa misma captura muestra el costo real.
+- **El p95.** Con cinco corridas el p95 es prácticamente el máximo (el más lento fue 70,8 s). Por eso
+  también anoto el P50 y el P99 del dashboard, que es lo que se ve en la captura de métricas.
+
+## Lo que queda anotado
+
+Nada de esto bloquea la entrega; lo dejo escrito porque lo vi y prefiero que esté dicho:
+
+- En el escenario 1 el supervisor mandó **tres veces** al analista antes de cerrar: el validador no le
+  reconoció el aporte a la primera y el corte por pasos terminó cerrando el trabajo. La respuesta salió
+  bien, pero es lo próximo a afinar (que un aporte con la cuenta hecha cuente como aporte).
+- El costo con la capa gratis del modelo da cero, como expliqué arriba.
+
 
 ## Requisitos
 
