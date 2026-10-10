@@ -6,7 +6,7 @@ legajo: L-001
 persona: Ana Ferreira
 ---
 
-# Legajo L-001 — Ana Ferreira
+# Legajo L-001: Ana Ferreira
 
 > Dato ficticio, creado para este trabajo.
 

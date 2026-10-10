@@ -26,8 +26,8 @@ Los feriados declarados por ley siguen este régimen:
 | martes o miércoles | el lunes inmediato anterior |
 | jueves o viernes | el lunes inmediato siguiente |
 
-**Excepción importante:** quedan fuera de ese corrimiento —y se observan el día en que caen, sea cual
-sea— Carnaval y Semana de Turismo, y los feriados del 1.° y 6 de enero, 1.° de mayo, 19 de junio, 18
+**Excepción importante:** quedan fuera de ese corrimiento (se observan el día en que caen, sea cual
+sea): Carnaval y Semana de Turismo, y los feriados del 1.° y 6 de enero, 1.° de mayo, 19 de junio, 18
 de julio, 25 de agosto, 2 de noviembre y 25 de diciembre.
 
 **Feriados no laborables** (no implican pago especial): el día que fije el Poder Ejecutivo para el Censo
@@ -40,7 +40,7 @@ el 2 de enero, Día del Pescador, para el personal de la pesca).
 ## Quién cobra el feriado y quién no
 
 **Tienen derecho a cobrarlo:** los suspendidos por causas que no le sean imputables (falta de materia
-prima, lluvia, etc.), los suspendidos dentro de los 10 días anteriores al feriado —se reintegren o no—,
+prima, lluvia, etc.), los suspendidos dentro de los 10 días anteriores al feriado (se reintegren o no),
 y los enfermos que hayan trabajado dentro de los 10 días anteriores al feriado.
 
 **No tienen derecho:** los accidentados o con enfermedad profesional no dados de alta a la fecha del

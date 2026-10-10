@@ -4,7 +4,7 @@ tipo: empresa
 empresa: Nordika S.A.
 ---
 
-# Nordika S.A. — quiénes somos
+# Nordika S.A.: quiénes somos
 
 > **Aviso:** Nordika S.A. es una empresa **ficticia**, creada para este trabajo. Los nombres, cargos,
 > sueldos y legajos que aparecen acá y en `data/legajos/` son inventados.

@@ -6,7 +6,7 @@ legajo: L-006
 persona: Facundo Pereyra
 ---
 
-# Legajo L-006 — Facundo Pereyra
+# Legajo L-006: Facundo Pereyra
 
 > Dato ficticio, creado para este trabajo.
 

@@ -6,7 +6,7 @@ legajo: L-003
 persona: Camila Duarte
 ---
 
-# Legajo L-003 — Camila Duarte
+# Legajo L-003: Camila Duarte
 
 > Dato ficticio, creado para este trabajo.
 

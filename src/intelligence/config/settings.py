@@ -10,10 +10,10 @@ Por qué existe este módulo (en vez de leer os.getenv() suelto por el código):
 3. Lo que es opcional es opcional DE VERDAD: sin PINECONE_API_KEY el recuperador arranca en modo
    léxico y el sistema anda igual.
 
-Detalle de implementación que no es obvio: el .env se lee SÓLO el del repo (ruta explícita), no
-se busca hacia arriba con `find_dotenv`. En este servidor hay otros .env en carpetas superiores y
-buscarlos hacia arriba hace que un proyecto se arranque con las claves de otro. Pasó al armar
-estas entregas y se paga con un rato de confusión.
+Detalle de implementación que me costó un rato: el .env se lee SÓLO el del repo (ruta explícita), y no se
+busca hacia arriba con `find_dotenv`. En este servidor hay otros .env en carpetas superiores y buscarlos
+hacia arriba hace que un proyecto arranque con las claves de otro. Lo descubrí cuando este arrancó con las
+claves de otra carpeta y tardé en darme cuenta.
 """
 
 from __future__ import annotations

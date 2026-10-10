@@ -6,7 +6,7 @@ legajo: L-002
 persona: Bruno Cardozo
 ---
 
-# Legajo L-002 — Bruno Cardozo
+# Legajo L-002: Bruno Cardozo
 
 > Dato ficticio, creado para este trabajo.
 

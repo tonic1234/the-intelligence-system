@@ -15,7 +15,7 @@ días como mínimo". Los días "deberán hacerse efectivos en un solo período c
 no se computarán los feriados".
 
 Traducido: son **20 días hábiles de licencia** y los feriados que caigan en el medio no se descuentan
-de esos 20 — se suman. Si la licencia arranca el 5 de enero y en el medio cae el feriado del 6, la
+de esos 20: se suman. Si la licencia arranca el 5 de enero y en el medio cae el feriado del 6, la
 persona vuelve un día más tarde de lo que el conteo simple sugeriría.
 
 **Días de más por antigüedad.** El artículo 2 agrega: "los trabajadores con más de cinco años de

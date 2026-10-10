@@ -6,7 +6,7 @@ legajo: L-005
 persona: Elena Martínez
 ---
 
-# Legajo L-005 — Elena Martínez
+# Legajo L-005: Elena Martínez
 
 > Dato ficticio, creado para este trabajo.
 

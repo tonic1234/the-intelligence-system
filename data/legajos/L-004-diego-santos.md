@@ -6,7 +6,7 @@ legajo: L-004
 persona: Diego Santos
 ---
 
-# Legajo L-004 — Diego Santos
+# Legajo L-004: Diego Santos
 
 > Dato ficticio, creado para este trabajo.
 
