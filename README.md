@@ -167,8 +167,8 @@ proceso y Phoenix registrando. Salida cruda de `python scripts/escenarios.py`:
 | 1. una sola capa (consulta de ley) | `done` | 55,0 s | 1 | investigador |
 | 2. dos dominios con cálculo | `done` | 48,5 s | 2 | investigador, analista |
 | 3. acción con efecto, la persona aprueba | `done` | 33,3 s | 1 | investigador |
-| 4. acción con efecto, la persona rechaza | `rechazado` | 3,0 s | 0 | — |
-| 5. consulta sin cobertura del corpus | `done` | 18,1 s | 0 | — |
+| 4. acción con efecto, la persona rechaza | `rechazado` | 3,0 s | 0 | nadie |
+| 5. consulta sin cobertura del corpus | `done` | 18,1 s | 0 | nadie |
 
 Tres cosas que muestran, y que son las que elijo mirar:
 
