@@ -1,8 +1,10 @@
-"""Arranca el worker como proceso aparte: `python -m app.worker_main`.
+"""Arranca el worker como proceso aparte: `python -m intelligence.worker`.
 
 La API y el worker comparten sólo Redis: no hay nada en memoria que los una. Por eso se pueden
 correr varios workers, reiniciar uno sin tocar la API y reanudar un trabajo pausado en otro
 proceso (los checkpoints del grafo están en Redis).
+
+Como la API, el worker pasa primero por `preparar_arranque()`: sin entorno válido no hay worker.
 """
 
 from __future__ import annotations
@@ -11,14 +13,17 @@ import asyncio
 import logging
 import os
 
-from intelligence.worker.cola import ColaRedis
+from intelligence.arranque import preparar_arranque
 from intelligence.graph.ejecutor import EjecutorDelGrafo
 from intelligence.observability.phoenix import activar_trazas
+from intelligence.worker.cola import ColaRedis
 from intelligence.worker.worker import correr_worker
 
 
 async def main() -> None:
     logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"), format="%(asctime)s %(levelname)s %(message)s")
+
+    preparar_arranque()
 
     # El worker también instrumenta: es el proceso donde corre el grafo, así que si esto faltara
     # el dashboard mostraría la API pero ninguna traza de los agentes.

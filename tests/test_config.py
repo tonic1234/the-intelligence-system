@@ -51,7 +51,7 @@ def entorno_limpio(monkeypatch):
 def cargar():
     from intelligence.config.settings import cargar_ajustes
 
-    return cargar_ajustes()
+    return cargar_ajustes(usar_env_del_repo=False)
 
 
 def test_sin_la_key_del_proveedor_elegido_falla_diciendo_cual_falta(monkeypatch):

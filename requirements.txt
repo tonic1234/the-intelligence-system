@@ -1,0 +1,30 @@
+# Lo que hace falta para correr la API y el worker
+fastapi>=0.115
+uvicorn[standard]>=0.32
+redis>=5.2
+langgraph-checkpoint-redis>=0.2
+
+# El orquestador y el recuperador (lo mismo que venía de las pre-entregas anteriores)
+langchain>=1.4
+langchain-core>=1.6
+langchain-classic>=1.0
+langchain-community>=0.4
+langchain-text-splitters>=1.0
+langchain-google-genai>=4.4
+langgraph>=1.2
+langchain-huggingface>=1.2
+sentence-transformers>=6.0
+langchain-pinecone>=0.2
+pinecone>=7.0
+rank_bm25>=0.2
+pydantic>=2.13
+python-dotenv>=1.2
+tiktoken>=0.14
+
+# Observabilidad: Phoenix local, el instrumentor de LangChain y el exportador OTLP.
+# El exportador y el SDK de OpenTelemetry vienen con Phoenix, pero los declaro porque
+# intelligence/observability/phoenix.py los importa de forma directa.
+arize-phoenix>=12.0
+openinference-instrumentation-langchain>=0.1
+opentelemetry-sdk>=1.30
+opentelemetry-exporter-otlp-proto-http>=1.30

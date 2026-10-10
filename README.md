@@ -99,8 +99,25 @@ todos se parten en más de un fragmento. Qué es real y qué no lo aclaro en
 
 ## Cómo se corre
 
-Necesita Redis andando y una clave de modelo en `.env`. La API y el worker son procesos distintos, así que
-van en dos terminales:
+Con **un solo comando**, siempre que tengas el entorno virtual activado y el `.env` creado:
+
+```bash
+source .venv/bin/activate      # una vez
+cp .env.example .env           # y completá la clave del modelo
+
+./run.sh                       # levanta Redis (si hace falta), Phoenix, la API y el worker
+```
+
+Al final imprime las dos URLs (API en `localhost:8000`, dashboard de trazas en `localhost:6006`) y
+confirma que Redis contesta. Para bajar todo: `./run.sh --parar`. Los registros quedan en `logs/`.
+
+Con Docker es igual de corto y no hace falta tener nada instalado, sólo Docker:
+
+```bash
+docker compose up --build
+```
+
+Y si preferís verlo por partes, son dos procesos que van en dos terminales:
 
 ```bash
 export PYTHONPATH=src                      # el código vive en src/
@@ -110,7 +127,13 @@ uvicorn intelligence.main:app --port 8000  # terminal 1: la API
 python -m intelligence.worker              # terminal 2: el worker
 ```
 
-Y se encola una consulta así:
+Los dos procesos validan el entorno al arrancar y dejan en el log en qué modo quedaron:
+
+```
+INFO arrancando: proveedor=gemini modelo=gemini-flash-latest recuperacion=lexico trazas=activas concurrencia=3
+```
+
+Se encola una consulta así:
 
 ```bash
 curl -s -X POST localhost:8000/tareas -H 'content-type: application/json' \
@@ -165,7 +188,7 @@ Se saca en https://aistudio.google.com/apikey (tiene capa gratis).
 Si querés usar otro proveedor, cambiá LLM_PROVIDER (válidos: anthropic, gemini, openai).
 ```
 
-## Las pruebas (121, sin claves y sin red)
+## Las pruebas (124, sin claves y sin red)
 
 ```bash
 python -m pytest tests -q

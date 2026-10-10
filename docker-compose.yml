@@ -1,0 +1,79 @@
+# Levanta todo con una sola instrucción: Redis, Phoenix, la API y el worker.
+#
+#   docker compose up --build
+#
+# La API queda en http://localhost:8000 y el dashboard de trazas en http://localhost:6006.
+# El worker es el MISMO código que la API, en otro proceso: no comparten nada en memoria,
+# sólo Redis. Por eso se puede reiniciar cualquiera de los dos sin perder trabajo.
+services:
+  # Redis con los módulos de búsqueda y JSON: los checkpoints del grafo los necesitan
+  # (con un Redis pelado, el RedisSaver no puede crear sus índices).
+  redis:
+    image: redis:8-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - datos-redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Phoenix: el dashboard de trazas. Va con volumen para no perder el historial al reiniciar.
+  phoenix:
+    image: arizephoenix/phoenix:latest
+    ports:
+      - "6006:6006"
+    environment:
+      PHOENIX_WORKING_DIR: /mnt/phoenix
+    volumes:
+      - datos-phoenix:/mnt/phoenix
+
+  api:
+    build: .
+    command: uvicorn intelligence.main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      PHOENIX_COLLECTOR_ENDPOINT: http://phoenix:6006/v1/traces
+      PHOENIX_PROJECT_NAME: the-intelligence-system
+      LLM_PROVIDER: ${LLM_PROVIDER:-gemini}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      PINECONE_API_KEY: ${PINECONE_API_KEY}
+      INDEX_NAME: ${INDEX_NAME:-the-intelligence-system}
+      PINECONE_NAMESPACE: ${PINECONE_NAMESPACE:-politicas-internas}
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - cache-huggingface:/root/.cache/huggingface
+
+  worker:
+    build: .
+    command: python -m intelligence.worker
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      PHOENIX_COLLECTOR_ENDPOINT: http://phoenix:6006/v1/traces
+      PHOENIX_PROJECT_NAME: the-intelligence-system
+      WORKER_CONCURRENCIA: "3"
+      LLM_PROVIDER: ${LLM_PROVIDER:-gemini}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      PINECONE_API_KEY: ${PINECONE_API_KEY}
+      INDEX_NAME: ${INDEX_NAME:-the-intelligence-system}
+      PINECONE_NAMESPACE: ${PINECONE_NAMESPACE:-politicas-internas}
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - cache-huggingface:/root/.cache/huggingface
+
+volumes:
+  datos-redis:
+  datos-phoenix:
+  cache-huggingface:

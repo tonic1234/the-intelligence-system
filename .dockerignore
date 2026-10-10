@@ -1,0 +1,10 @@
+# Lo que no tiene por qué viajar a la imagen
+.git
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+.env
+logs
+screenshots/*.tmp
+carga.json
