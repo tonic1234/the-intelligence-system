@@ -14,18 +14,21 @@ herramienta las veces que necesite.
 
 from __future__ import annotations
 
-from intelligence.agents.herramientas import buscar_en_politicas_internas
+from intelligence.agents.herramientas import buscar_en_las_fuentes
 
 INVESTIGADOR_PROMPT = (
-    "Sos el especialista en investigación de un equipo. Tu única función es buscar datos "
-    "concretos de la empresa (políticas internas de vacaciones, teletrabajo, seguridad "
-    "informática y onboarding) usando tu herramienta de búsqueda.\n\n"
+    "Sos el especialista en investigación de un equipo. Tu única función es traer datos concretos "
+    "usando tu herramienta de búsqueda, que cubre tres capas: las leyes de trabajo de Uruguay, los "
+    "manuales internos de la empresa y los legajos de las personas.\n\n"
     "Cómo trabajás:\n"
-    "- Hacé la búsqueda con los términos del pedido y devolvé los datos LITERALES que "
-    "encuentres, con la fuente entre corchetes tal como te llegan.\n"
+    "- Hacé la búsqueda con los términos del pedido y devolvé los datos LITERALES que encuentres, "
+    "con la fuente entre corchetes tal como te llegan.\n"
+    "- Una sola búsqueda por dato que te falte: si ya tenés los fragmentos, respondé. Repetir la "
+    "misma consulta no agrega nada y hace perder tiempo.\n"
+    "- Si necesitás un dato distinto, hacé una búsqueda nueva con otros términos.\n"
     "- No hagas cálculos: si el pedido pide una cuenta, devolvé los números y nada más.\n"
-    "- Si la búsqueda no devuelve nada, respondé empezando con 'ERROR:' y explicá qué "
-    "término buscaste. No inventes datos ni completes con suposiciones.\n"
+    "- Si la búsqueda no devuelve nada, respondé empezando con 'ERROR:' y explicá qué término "
+    "buscaste. No inventes datos ni completes con suposiciones.\n"
     "- Contestá en pocas líneas: el dato y la fuente."
 )
 
@@ -42,6 +45,6 @@ def build_research_agent(llm=None):
 
     return create_agent(
         model=llm,
-        tools=[buscar_en_politicas_internas],
+        tools=[buscar_en_las_fuentes],
         system_prompt=INVESTIGADOR_PROMPT,
     )

@@ -64,6 +64,7 @@ class Ajustes:
     worker_concurrencia: int
     job_ttl_segundos: int
     minutos_espera_aprobacion: int
+    job_timeout_segundos: int
     umbral_costo_aprobacion: float
     phoenix_collector_endpoint: str | None
     phoenix_project_name: str
@@ -89,7 +90,7 @@ class Ajustes:
             f"proveedor={self.proveedor} modelo={self.modelo} "
             f"recuperacion={self.modo_recuperacion} "
             f"trazas={'activas' if self.trazas_activas else 'apagadas'} "
-            f"concurrencia={self.worker_concurrencia}"
+            f"concurrencia={self.worker_concurrencia} tope={self.job_timeout_segundos}s"
         )
 
 
@@ -180,6 +181,7 @@ def cargar_ajustes(usar_env_del_repo: bool = True) -> Ajustes:
         worker_concurrencia=_entero("WORKER_CONCURRENCIA", 3),
         job_ttl_segundos=_entero("JOB_TTL_SEGUNDOS", 86400),
         minutos_espera_aprobacion=_entero("MINUTOS_ESPERA_APROBACION", 15),
+        job_timeout_segundos=_entero("JOB_TIMEOUT_SEGUNDOS", 300),
         umbral_costo_aprobacion=_decimal("UMBRAL_COSTO_APROBACION", 0.02),
         phoenix_collector_endpoint=_validar_endpoint(
             "PHOENIX_COLLECTOR_ENDPOINT", _texto("PHOENIX_COLLECTOR_ENDPOINT")

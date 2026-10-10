@@ -24,10 +24,32 @@ from intelligence.graph.estado import estado_inicial
 log = logging.getLogger(__name__)
 
 
+# Si el equipo de agentes se pasa de este tiempo, el trabajo se corta. Se puede cambiar por
+# entorno; la capa de configuración lo valida al arrancar para que un valor mal escrito no pase.
+TOPES_SEGUNDOS_POR_DEFECTO = 300.0
+
+
+def _tope_de_entorno() -> float:
+    try:
+        valor = float(os.getenv("JOB_TIMEOUT_SEGUNDOS", str(TOPES_SEGUNDOS_POR_DEFECTO)))
+    except ValueError:
+        return TOPES_SEGUNDOS_POR_DEFECTO
+    return valor if valor > 0 else TOPES_SEGUNDOS_POR_DEFECTO
+
+
 class EjecutorDelGrafo:
-    def __init__(self, redis_url: str | None = None, costo_estimado: float | None = None):
+    def __init__(
+        self,
+        redis_url: str | None = None,
+        costo_estimado: float | None = None,
+        tope_segundos: float | None = None,
+    ):
         self.redis_url = redis_url or os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
         self.costo_estimado = costo_estimado
+        # Tope duro de tiempo por trabajo. La consigna marca como error grave dejar al cliente
+        # en un polling infinito: si el equipo de agentes se toma más de esto, el trabajo se corta
+        # y queda en FALLO con el motivo, en vez de quedarse "en_proceso" para siempre.
+        self.tope_segundos = tope_segundos or _tope_de_entorno()
         self._cliente = None
         self._saver = None
         self._grafo = None
@@ -66,6 +88,22 @@ class EjecutorDelGrafo:
         if self._cliente is not None:
             await self._cliente.aclose()
 
+    async def _correr(self, espera, hilo_id: str):
+        """Espera a que el grafo termine, con tope de tiempo.
+
+        `asyncio.wait_for` cancela la espera y devuelve el control: el trabajo no queda colgado y
+        el worker lo puede marcar en FALLO con el motivo. Sin esto, un agente que se traba deja al
+        cliente consultando el estado para siempre.
+        """
+
+        try:
+            return await asyncio.wait_for(espera, timeout=self.tope_segundos)
+        except asyncio.TimeoutError:
+            log.warning("el trabajo %s se pasó del tope de %.0f s: lo corto", hilo_id, self.tope_segundos)
+            raise TimeoutError(
+                f"el trabajo superó el tope de {self.tope_segundos:.0f} segundos sin terminar"
+            ) from None
+
     async def __call__(self, pregunta: str, reanudacion: dict | None = None) -> dict:
         await self.preparar()
 
@@ -75,9 +113,15 @@ class EjecutorDelGrafo:
         if reanudacion:
             aprobado = bool(reanudacion.get("aprobado"))
             log.info("reanudo el hilo %s con la decisión: %s", hilo_id, "aprobado" if aprobado else "rechazado")
-            await self._grafo.ainvoke(Command(resume={"aprobado": aprobado, "comentario": reanudacion.get("comentario")}), config)
+            await self._correr(
+                self._grafo.ainvoke(
+                    Command(resume={"aprobado": aprobado, "comentario": reanudacion.get("comentario")}),
+                    config,
+                ),
+                hilo_id,
+            )
         else:
-            await self._grafo.ainvoke(estado_inicial(pregunta), config)
+            await self._correr(self._grafo.ainvoke(estado_inicial(pregunta), config), hilo_id)
 
         estado = await self._grafo.aget_state(config)
         valores = dict(estado.values or {})

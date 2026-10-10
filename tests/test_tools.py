@@ -64,7 +64,7 @@ def test_busqueda_usa_el_rag_inyectado_y_cita_la_fuente():
     rag = RAGFalso()
     tools.set_rag(rag)
     try:
-        salida = tools.buscar_en_politicas_internas.invoke({"pregunta": "¿cuántos días de vacaciones?"})
+        salida = tools.buscar_en_las_fuentes.invoke({"pregunta": "¿cuántos días de vacaciones?"})
     finally:
         tools.set_rag(None)
 
@@ -80,7 +80,7 @@ def test_busqueda_sin_resultados_lo_dice_en_vez_de_inventar():
 
     tools.set_rag(RAGVacio())
     try:
-        salida = tools.buscar_en_politicas_internas.invoke({"pregunta": "¿política de bonos?"})
+        salida = tools.buscar_en_las_fuentes.invoke({"pregunta": "¿política de bonos?"})
     finally:
         tools.set_rag(None)
 

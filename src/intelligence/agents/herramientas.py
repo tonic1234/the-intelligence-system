@@ -5,7 +5,7 @@ herramientas ACOTADAS (que el investigador no calcule y el analista no investigu
 
 Dos herramientas, entonces:
 
-1. `buscar_en_politicas_internas`: la del investigador. Consulta el vector DB de las
+1. `buscar_en_las_fuentes`: la del investigador. Consulta el corpus de las
    pre-entregas anteriores (Pinecone/BM25) y devuelve los fragmentos CON su fuente.
 2. `calculadora`: la del analista. Y acá está el detalle que importa: el argumento viene
    de un LLM, o sea que es texto de un tercero. Pasarle eso a `eval()` sería regalar la
@@ -55,7 +55,7 @@ def get_rag():
 # Herramienta 1: investigación
 # ---------------------------------------------------------------------------
 @tool
-def buscar_en_politicas_internas(pregunta: str) -> str:
+def buscar_en_las_fuentes(pregunta: str) -> str:
     """Busca información en las políticas internas de la empresa (vacaciones, teletrabajo,
     seguridad informática, onboarding). Usar SIEMPRE que haga falta un dato concreto de la
     empresa: reglas, plazos o números. No sirve para calcular.
