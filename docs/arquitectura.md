@@ -34,7 +34,7 @@ start ─▶ supervisor ─▶ aprobacion ─┬─▶ investigador ─▶ super
 | Nodo | Qué hace |
 |---|---|
 | supervisor | Lee la pregunta y decide a quién delegar, con salida estructurada (Pydantic) y un tope de pasos como corte duro |
-| aprobacion | Decide si la tarea implica una acción con efecto (enviar, publicar, borrar) o supera un umbral de costo. Si es así, pausa el grafo con `interrupt()` y espera |
+| aprobacion | Decide si la tarea implica una acción con efecto (enviar, publicar, borrar), si el costo estimado del trabajo pasa el umbral o si el gasto acumulado ya lo pasó. Si es así, pausa el grafo con `interrupt()` y espera |
 | investigador | Busca en el corpus (leyes, manuales, legajos) y devuelve los fragmentos con su fuente |
 | analista | Hace las cuentas: días de licencia, salario vacacional, aguinaldo, horas extras. Usa una herramienta de cálculo, no el modelo |
 | validacion | Chequea la respuesta contra lo que pedía la pregunta: si faltan dominios o faltan citas, la devuelve |
@@ -46,14 +46,61 @@ resueltas, algo que me pasó en la pre-entrega anterior y que se ve en las traza
 
 ## La pausa por aprobación humana
 
-La decisión de pausar no la toma el modelo, la toma el código: mira verbos de acción en la instrucción y el
-costo estimado del paso. Es auditable y repetible, y por eso se puede probar.
+La decisión de pausar no la toma el modelo, la toma el código: es auditable, repetible y se puede probar.
+Son tres reglas, en `src/intelligence/graph/aprobacion.py`:
 
-- Si la tarea no tiene efecto, el grafo sigue de largo.
-- Si lo tiene, `interrupt()` guarda el estado en el checkpointer y devuelve el control. El trabajo queda
-  en `esperando_aprobacion` con la instrucción a la vista y cero pasos ejecutados.
+1. **Acción con efecto.** El pedido pide algo con consecuencias. El verbo tiene que estar en una forma de
+   pedido: imperativo con objeto ("publicá **el** informe") o infinitivo que alguien pide ("necesito
+   publicar", "hay que enviar"). Y no cuenta si viene precedido por un determinante, porque ahí la misma
+   palabra es un sustantivo ("la **firma**", "el **envío**").
+2. **Costo estimado del trabajo.** Al armar el estado del trabajo se estima el costo del pedido: tokens
+   del pedido por las rondas esperadas del equipo, con la tabla de precios por modelo (`graph/costos.py`).
+   Si llega al umbral (`UMBRAL_COSTO_APROBACION`, 0,02 US$ por defecto), pide aprobación.
+3. **Gasto acumulado.** Lo gastado de verdad, sumado del uso que reporta el modelo en cada paso. Es la
+   red para un trabajo que se estira: cuando el acumulado pasa el umbral, la ronda siguiente pide
+   aprobación.
+
+En la devolución de la pre-entrega 7 me marcaron dos cosas que están arregladas acá: la regla buscaba
+**fragmentos** de verbo (por eso "la política actualizada" y "el archivo de onboarding" pausaban
+consultas inocentes), y la comparación se hacía sobre la instrucción que redacta el supervisor además del
+pedido. Ahora se evalúa el **pedido de la persona**, y el supervisor sólo puede **agregar** una pausa con
+su clasificación estructurada (`accion_con_efectos`), nunca quitarla. El lado seguro del error es pausar
+de más y que una persona decida, no dejar pasar una acción que nadie autorizó.
+
+Sobre el mecanismo:
+
+- Si la tarea no es crítica, el grafo sigue de largo sin tocar nada.
+- Si lo es, `interrupt()` guarda el estado en el checkpointer y devuelve el control. El trabajo queda
+  en `esperando_aprobacion` con la instrucción y el motivo a la vista, y con cero pasos ejecutados.
 - Cuando la persona aprueba (`POST /tareas/{id}/aprobar`), el worker reanuda con `Command(resume=...)`
   desde el checkpoint. No vuelve a empezar y no pide permiso otra vez en las rondas siguientes.
+- Si nadie contesta en `MINUTOS_ESPERA_APROBACION`, el trabajo se cierra como
+  `rechazado_por_timeout`: una aprobación colgada no puede dejar el estado para siempre.
+
+Los dos números del costo quedan guardados con el trabajo y se leen desde la API
+(`GET /tareas/{id}` devuelve `costo_estimado` y `costo_acumulado`), además de verse en el dashboard.
+
+## Instalación y arranque
+
+Los requisitos están partidos en dos archivos por un motivo concreto: la devolución de la pre-entrega 7
+decía que `pip install` "no terminó en 10 minutos" y que por eso no se pudieron correr las pruebas. El
+culpable era que el camino base arrastraba `sentence-transformers` (que trae torch) y el paquete completo
+de Phoenix. Hoy:
+
+| Instalación | Qué trae | Para qué sirve | Medido en un venv vacío |
+|---|---|---|---|
+| `pip install -r requirements.txt` | El camino liviano, sin torch | Correr la API, el worker y todas las pruebas | 78,6 s |
+| `pip install -r requirements-dev.txt` | Lo anterior más pytest, fakeredis y httpx | Correr la suite completa | 79,6 s |
+| `pip install -r requirements-embeddings.txt` | `sentence-transformers` + `langchain-huggingface` | Sólo para la búsqueda vectorial local (opcional) | no la medí |
+
+El dashboard de trazas no está en ninguno de los tres: corre en su contenedor, y `run.sh` lo levanta con
+Docker si no encuentra el paquete de Python instalado.
+
+El arranque en Docker respeta el orden: `api` y `worker` esperan a que **Redis** y **Phoenix** estén
+sanos. Phoenix tiene su `healthcheck`, que es a mano porque su imagen no trae shell ni curl (arranca en
+`/usr/bin/python3.13` y se pregunta a sí misma por su puerto). Medido contra la imagen real, Phoenix tarda
+unos 40 segundos en contestar: sin esa espera, los dos procesos arrancaban con el colector caído y las
+primeras trazas se perdían, que es exactamente lo que la devolución marcó.
 
 ## Las tres capas del corpus
 
@@ -96,3 +143,7 @@ corridas viejas (o las de depuración), el número no es el de la corrida que es
 | El `.env` que se lee es solo el del repo, con ruta explícita | Buscar hacia arriba con `find_dotenv` hizo que este proyecto arrancara con las claves de otra carpeta del servidor |
 | Sin Pinecone el recuperador cae a modo léxico | Lo opcional tiene que ser opcional de verdad: el repo corre sin tarjeta |
 | Las pruebas corren sin claves y sin red | Así cualquiera clona el repo y verifica que anda, sin pedir prestada una API key |
+| Los requisitos pesados van en un archivo aparte | Instalar torch en el camino crítico hacía que la instalación no terminara en 10 minutos (devolución de la pre-entrega 7) |
+| El precio del modelo sale de una tabla y no de una suposición | Inventar un precio es peor que decir que no hay: con un modelo sin precio, la estimación da cero y lo deja dicho en el log |
+| El costo estimado se calcula por pedido, al armar el estado | Tenerlo como parámetro del ejecutor hacía que llegara siempre vacío y que la regla del umbral no se activara nunca |
+| La pausa se evalúa sobre el pedido de la persona, no sobre la instrucción del supervisor | La instrucción describe el trabajo y puede nombrar acciones sin pedirlas; el pedido es el que tiene el efecto |

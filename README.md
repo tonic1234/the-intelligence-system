@@ -99,17 +99,28 @@ todos se parten en más de un fragmento. Qué es real y qué no lo aclaro en
 
 ## Cómo se corre
 
-Con **un solo comando**, siempre que tengas el entorno virtual activado y el `.env` creado:
+Desde cero son dos comandos (el segundo levanta todo):
 
 ```bash
-source .venv/bin/activate      # una vez
-cp .env.example .env           # y completá la clave del modelo
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements-dev.txt    # base + lo que necesitan las pruebas
+cp .env.example .env                   # y completá la clave del modelo
 
-./run.sh                       # levanta Redis (si hace falta), Phoenix, la API y el worker
+./run.sh                               # levanta Redis (si hace falta), Phoenix, la API y el worker
 ```
+
+Los requisitos están partidos en dos a propósito, y el motivo viene de una devolución: el camino base
+tiene que instalarse rápido y sin torch, porque el corrector quiere correr las pruebas sin esperar. Los
+embeddings locales (que traen `torch`, cientos de megas) van en `requirements-embeddings.txt` y sólo
+hacen falta para la búsqueda vectorial local. Medido en un entorno virtual vacío, de cero:
+**78,6 segundos** el camino base y **79,6 segundos** el que necesitan las pruebas.
 
 Al final imprime las dos URLs (API en `localhost:8000`, dashboard de trazas en `localhost:6006`) y
 confirma que Redis contesta. Para bajar todo: `./run.sh --parar`. Los registros quedan en `logs/`.
+
+Si el paquete de Phoenix no está instalado (no es requisito del camino base), `run.sh` levanta el
+dashboard con la misma imagen de Docker que usa el compose, y espera a que conteste antes de arrancar la
+API y el worker: Phoenix tarda unos 40 segundos y, si arrancan antes, las primeras trazas se pierden.
 
 Con Docker es igual de corto y no hace falta tener nada instalado, sólo Docker:
 
@@ -130,7 +141,7 @@ python -m intelligence.worker              # terminal 2: el worker
 Los dos procesos validan el entorno al arrancar y dejan en el log en qué modo quedaron:
 
 ```
-INFO arrancando: proveedor=gemini modelo=gemini-flash-latest recuperacion=lexico trazas=activas concurrencia=3
+INFO arrancando: proveedor=gemini modelo=gemini-flash-latest recuperacion=hibrido trazas=activas concurrencia=2
 ```
 
 Se encola una consulta así:
@@ -156,6 +167,50 @@ El salario vacacional equivale al 100 % del jornal líquido ($ 4.010 por día):
   - por los 12 días pendientes:      $ 48.120
 ```
 
+## La pausa por aprobación: cómo se decide
+
+En la devolución de la pre-entrega 7 me marcaron que la regla que dispara la pausa estaba escrita a lo
+bruto: buscaba **fragmentos** de verbo dentro del texto, así que "¿qué dice la política de vacaciones
+**actualizada**?" o "resumí el **archivo** de onboarding" pausaban el trabajo y dejaban a una persona
+esperando para aprobar una consulta. Lo arreglé comparando palabras completas y mirando el papel que
+cumplen en la frase. La regla vive en `src/intelligence/graph/aprobacion.py` y son tres:
+
+1. **Acción con efecto.** El pedido pide algo con consecuencias (publicar, escribir, enviar, borrar,
+   firmar, pagar, transferir, desplegar, modificar, actualizar, archivar, subir, reemplazar, contratar,
+   eliminar, mandar). Cuenta como acción si el verbo está en una forma de pedido ("publicá **el**
+   informe") o si es un infinitivo que alguien pide ("necesito publicar", "hay que enviar"). No cuenta
+   cuando viene precedido por un determinante, porque ahí la misma palabra es un sustantivo: "la
+   **firma** del contrato".
+2. **Costo estimado del trabajo.** Al arrancar se estima lo que va a costar el pedido: los tokens del
+   pedido por las rondas esperadas del equipo, con la tabla de precios por modelo. Si llega al umbral,
+   pide aprobación. Antes este número llegaba siempre vacío y la regla no se activaba nunca; ahora se
+   calcula al armar el estado del trabajo y viaja con él.
+3. **Gasto acumulado.** Lo que se gastó de verdad, sumado del uso que reporta el modelo en cada paso. Si
+   el trabajo ya se pasó del umbral, la ronda siguiente pide aprobación.
+
+Los dos números del costo, y el motivo de la pausa cuando la hay, se ven desde afuera:
+
+```bash
+curl -s localhost:8000/tareas/$JOB_ID | python -m json.tool | grep -E "costo|motivo"
+# "motivo_aprobacion": "el pedido pide una acción con efecto ('publicar')",
+# "costo_estimado": 0.000325,
+# "costo_acumulado": 0.000896
+```
+
+Y la pausa por costo se puede ver sin esperar a que un trabajo la alcance solo, bajando el umbral:
+
+```bash
+UMBRAL_COSTO_APROBACION=0.0001 ./run.sh
+# el trabajo queda en "esperando_aprobacion" con este motivo:
+# el costo estimado del trabajo (0.0003 US$) alcanza el umbral (0.0001 US$)
+```
+
+Lo que se evalúa es el **pedido de la persona**, no la instrucción que redacta el supervisor: esa
+instrucción es una descripción del trabajo ("buscá en el archivo de políticas...") y puede nombrar
+acciones sin pedirlas. El supervisor tiene su propia vía, y es sólo de ida: su clasificación
+estructurada (`accion_con_efectos`) puede **agregar** una pausa, nunca quitarla. La decisión dura sigue
+estando en el código.
+
 ## Las cinco corridas
 
 Lo que pide la consigna: al menos cinco pruebas del sistema con las trazas visibles. En vez de mandar
@@ -164,23 +219,28 @@ proceso y Phoenix registrando. Salida cruda de `python scripts/escenarios.py`:
 
 | Escenario | Resultado | Tiempo | Pasos | Quién aportó |
 |---|---|---|---|---|
-| 1. una sola capa (consulta de ley) | `done` | 55,0 s | 1 | investigador |
-| 2. dos dominios con cálculo | `done` | 48,5 s | 2 | investigador, analista |
-| 3. acción con efecto, la persona aprueba | `done` | 33,3 s | 1 | investigador |
-| 4. acción con efecto, la persona rechaza | `rechazado` | 3,0 s | 0 | nadie |
-| 5. consulta sin cobertura del corpus | `done` | 18,1 s | 0 | nadie |
+| 1. una sola capa (consulta de ley) | `done` | 63,4 s | 1 | investigador |
+| 2. dos dominios con cálculo | `done` | 75,3 s | 4 | investigador, analista, investigador, investigador |
+| 3. acción con efecto, la persona aprueba | `done` | 39,1 s | 1 | investigador |
+| 4. acción con efecto, la persona rechaza | `rechazado` | 6,0 s | 0 | nadie |
+| 5. consulta sin cobertura del corpus | `done` | 24,3 s | 0 | nadie |
 
 Tres cosas que muestran, y que son las que elijo mirar:
 
 1. **La pausa funciona.** En el escenario 3 el trabajo quedó esperando aprobación con la instrucción a
-   la vista y **cero pasos ejecutados**, y siguió después del OK. En el 4, el rechazo cerró el trabajo
-   en 6 segundos.
-2. **La consulta sin cobertura no se inventa nada**: *"Actualmente no dispongo de los datos sobre el
-   costo de los pasajes a Miami para enero ni de recomendaciones específicas de hoteles (...) sin
+   la vista y **cero pasos ejecutados**, y siguió después del OK (el escenario 4, con rechazo, cierra en
+   6 segundos sin ejecutar nada).
+2. **La consulta sin cobertura no se inventa nada**: *"En este momento no disponemos de los precios
+   actualizados para los pasajes a Miami en enero ni de recomendaciones puntuales de hoteles (...) sin
    inventar números"*.
 3. **El cálculo sale de la herramienta, no del modelo**: en el escenario 2 la respuesta trae los 21 días
    de licencia de Bruno (20 de la ley más el día que agrega Nordika a los 3 años) y el salario vacacional
    calculado con el jornal líquido de su legajo: 4.430 × 21 = **$ 93.030**.
+
+Sobre los pasos del escenario 2: en esta corrida fueron 4 y no 2. El validador no aceptó el aporte hasta
+que estuvieran citados el jornal líquido del legajo y el artículo del salario vacacional, así que el
+supervisor mandó al investigador dos veces más. Esa es la defensa que dejé a propósito (un aporte sin
+fuente no cuenta como trabajo hecho) y es la misma respuesta que antes: 21 días y $ 93.030.
 
 ## Las capturas y los números del dashboard
 
@@ -189,22 +249,23 @@ limpio antes de la sesión (si no, el p95 mezcla corridas viejas):
 
 | Captura | Qué muestra |
 |---|---|
-| `01-trazas.png` | Las seis trazas del proyecto, una por corrida más la de la prueba de la pausa |
-| `02-trazas-del-grafo.png` | Una traza abierta: el árbol con los nodos (`supervisor`, `aprobacion`, `validacion`, `sintesis`) y arriba el costo y la latencia de esa ejecución |
+| `01-trazas.png` | Las seis trazas del proyecto (una por escenario más la del reanudado) y el panel de estadísticas con P50 y P99 |
+| `02-trazas-del-grafo.png` | Los spans de las corridas sin el filtro: se ven los nodos del grafo (`supervisor`, `aprobacion`, `tras_aprobacion`, `validacion`, `ruta_tras_validacion`, `sintesis`) con su latencia y el `resume` de la aprobación |
 | `03-latencia-costos.png` | La vista de métricas: el costo estimado, los percentiles de latencia (max, p50, p75, p90, p95, p99) y el consumo de tokens |
 | `04-api-docs.png` | La API documentada y navegable que trae FastAPI (`/docs`), con los cuatro endpoints y sus esquemas |
 
-Números leídos del dashboard después de las cinco corridas: **6 trazas** (una por escenario más la del
-reanudado), **latencia P50 20,6 s** y **P99 53,3 s**. En la captura de la traza abierta se ve además el
-costo y la latencia de esa ejecución en particular.
+Números leídos del dashboard después de las cinco corridas: **6 trazas**, **latencia P50 27,9 s** y
+**P99 1m 12s** (con seis corridas el P99 es prácticamente el máximo, que fue 73,0 s), y **más de 60.000
+tokens** en la sesión. En la tabla de spans cada corrida trae además su latencia, sus tokens y el costo
+estimado.
 
-Dos notas honestas sobre estas métricas:
+Dos cosas que aclaro sobre estas métricas:
 
-- **El costo.** La consigna pide el costo por ejecución, que la plataforma calcula desde los tokens. Con
-  la capa gratis de Gemini ese costo da **$ 0,00**, así que dejo las dos capturas: la de costo (con la
-  línea en cero) y la de **tokens** (más de 40.000 en la sesión), que es la métrica que se mueve de
-  verdad. Corriendo con un proveedor pago, esa misma captura muestra el costo real.
-- **El p95.** Con cinco corridas el p95 es prácticamente el máximo (el más lento fue 55,0 s). Por eso
+- **El costo.** La consigna pide el costo por ejecución y el dashboard lo estima solo, desde los tokens:
+  en la sesión de estas corridas va de menos de un centavo (las que pausan o rechazan) a **$ 0,05** en la
+  más larga. Es una estimación con el precio de lista del modelo; con la capa gratis de Gemini la factura
+  del mes es cero.
+- **El p95.** Con cinco corridas el p95 es prácticamente el máximo (el más lento fue 73,0 s). Por eso
   también anoto el P50 y el P99 del dashboard, que es lo que se ve en la captura de métricas.
 
 ## Lo que quedó afuera y lo que ajusté
@@ -217,12 +278,15 @@ y "12.590" es el número de la ley.
 
 Lo arreglé en el patrón (buscar las palabras que piden una cuenta, no los números sueltos) y no
 aflojando el criterio, que es la defensa contra aceptar promesas como trabajo hecho. Después del
-arreglo, el escenario 1 cierra en **1 paso y 55,0 s** con la misma respuesta. Tres pruebas de regresión
-cubren el caso: el número de una ley no exige al analista, una fecha tampoco, y "cuánto cobra" o "cuántos
-días le corresponden" sí.
+arreglo, el escenario 1 cierra en **1 paso** (63,4 s en la corrida de arriba) con la misma respuesta.
+Tres pruebas de regresión cubren el caso: el número de una ley no exige al analista, una fecha tampoco,
+y "cuánto cobra" o "cuántos días le corresponden" sí.
 
-Sigue pendiente, y no lo tapo: **con la capa gratis del modelo el costo por ejecución es cero**, que es
-lo que muestra la captura de costo.
+Con la capa gratis de Gemini la factura del mes es cero, pero el dashboard igual estima el costo a partir
+de los tokens y del precio de lista del modelo: en esta sesión va de menos de un centavo, en las corridas
+que pausan o rechazan, a **$ 0,05** en la más larga (41.698 tokens). Esa estimación no es la que decide:
+la regla del umbral tiene sus propios números a la vista en la API (`costo_estimado` y `costo_acumulado`
+en `GET /tareas/{id}`, ver la sección de la pausa por aprobación).
 
 
 ## Requisitos
@@ -232,8 +296,11 @@ lo que muestra la captura de costo.
 - **Docker**, si preferís no instalar Redis ni Phoenix a mano
 - Una clave de modelo: Gemini (tiene capa gratis), OpenAI o Anthropic. Se elige con `LLM_PROVIDER`
 
-Sin clave de Pinecone el recuperador arranca en modo léxico y el sistema funciona igual. Las claves no
-entran al repo: se copia `.env.example` a `.env` y se completan ahí.
+`requirements.txt` es el camino liviano: alcanza para correr la API, el worker y todas las pruebas. Los
+embeddings locales (`sentence-transformers`, que trae torch) van aparte en
+`requirements-embeddings.txt` y sólo hacen falta para la búsqueda vectorial contra Pinecone. Sin clave
+de Pinecone el recuperador arranca en modo léxico y el sistema funciona igual. Las claves no entran al
+repo: se copia `.env.example` a `.env` y se completan ahí.
 
 ## Configuración
 
@@ -247,7 +314,7 @@ Se saca en https://aistudio.google.com/apikey (tiene capa gratis).
 Si querés usar otro proveedor, cambiá LLM_PROVIDER (válidos: anthropic, gemini, openai).
 ```
 
-## Las pruebas (140, sin claves y sin red)
+## Las pruebas (197, sin claves y sin red)
 
 ```bash
 python -m pytest tests -q
