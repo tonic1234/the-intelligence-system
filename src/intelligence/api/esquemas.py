@@ -52,6 +52,12 @@ class InformeJob(BaseModel):
     pasos: int = 0
     contribuciones: list[dict] = Field(default_factory=list)
     instruccion_pendiente: str | None = None
+    # Por qué el sistema pidió aprobación (qué regla se disparó). Se muestra junto a la instrucción.
+    motivo_aprobacion: str | None = None
     hilo_id: str | None = None
     creada_en: str | None = None
     actualizada_en: str | None = None
+    # Los dos números del costo, a la vista: el estimado del pedido (calculado al arrancar) y lo
+    # gastado de verdad hasta este momento, sumado del uso que reporta el modelo.
+    costo_estimado: float | None = None
+    costo_acumulado: float | None = None

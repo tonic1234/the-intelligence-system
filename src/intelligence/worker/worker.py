@@ -40,6 +40,10 @@ async def procesar_job(job_id: str, cola, ejecutor, reanudacion: dict | None = N
         "pasos": salida.get("pasos", 0),
         "contribuciones": salida.get("contribuciones", []),
         "hilo_id": salida.get("hilo_id"),
+        # Los costos quedan guardados con el trabajo: la regla de umbral del HITL se apoya en ellos
+        # y quien consulte el estado los puede ver sin abrir el dashboard.
+        "costo_estimado": salida.get("costo_estimado"),
+        "costo_acumulado": salida.get("costo_acumulado"),
     }
 
     if salida.get("interrumpido"):
@@ -47,6 +51,9 @@ async def procesar_job(job_id: str, cola, ejecutor, reanudacion: dict | None = N
             job_id,
             EstadoJob.ESPERANDO_APROBACION,
             instruccion_pendiente=salida.get("instruccion_pendiente"),
+            # El motivo de la pausa (qué regla se disparó) queda guardado con el trabajo: quien
+            # aprueba lo ve en el estado, sin tener que abrir el checkpointer.
+            motivo_aprobacion=salida.get("motivo_aprobacion"),
             **comunes,
         )
 

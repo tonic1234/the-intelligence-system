@@ -33,7 +33,8 @@ class RespuestaLegible(JSONResponse):
 
 CAMPOS_INFORME = (
     "job_id", "estado", "pregunta", "resultado", "error", "pasos",
-    "contribuciones", "instruccion_pendiente", "hilo_id", "creada_en", "actualizada_en",
+    "contribuciones", "instruccion_pendiente", "motivo_aprobacion", "hilo_id", "creada_en",
+    "actualizada_en", "costo_estimado", "costo_acumulado",
 )
 
 

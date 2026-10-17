@@ -45,6 +45,9 @@ class EjecutorDelGrafo:
         tope_segundos: float | None = None,
     ):
         self.redis_url = redis_url or os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
+        # El costo estimado se calcula por PEDIDO en `estado_inicial`. Este valor es sólo un tope
+        # manual para forzarlo en una corrida de prueba (por ejemplo, para ver la pausa por costo
+        # sin esperar a que el trabajo la alcance solo).
         self.costo_estimado = costo_estimado
         # Tope duro de tiempo por trabajo. La consigna marca como error grave dejar al cliente
         # en un polling infinito: si el equipo de agentes se toma más de esto, el trabajo se corta
@@ -121,16 +124,31 @@ class EjecutorDelGrafo:
                 hilo_id,
             )
         else:
-            await self._correr(self._grafo.ainvoke(estado_inicial(pregunta), config), hilo_id)
+            # El costo estimado del pedido viaja en el estado (y no como un valor del ejecutor):
+            # lo calcula `estado_inicial` para ESTE pedido. Antes el ejecutor se construía sin ese
+            # valor, así que la regla de costo del HITL no se activaba nunca (devolución de la PE7).
+            await self._correr(
+                self._grafo.ainvoke(
+                    estado_inicial(pregunta, costo_estimado=self.costo_estimado), config
+                ),
+                hilo_id,
+            )
 
         estado = await self._grafo.aget_state(config)
         valores = dict(estado.values or {})
         interrumpido = bool(estado.next) and bool(estado.interrupts)
 
         pendiente = None
+        motivo = None
         if interrumpido:
             valor = estado.interrupts[0].value
-            pendiente = valor.get("instruccion") if isinstance(valor, dict) else str(valor)
+            if isinstance(valor, dict):
+                pendiente = valor.get("instruccion")
+                # El motivo de la pausa viaja con el trabajo: quien va a aprobar tiene que ver POR
+                # QUÉ el sistema frenó (qué regla se disparó), no sólo que frenó.
+                motivo = valor.get("motivo")
+            else:
+                pendiente = str(valor)
 
         resultado = None
         if not interrumpido and valores.get("messages"):
@@ -142,5 +160,10 @@ class EjecutorDelGrafo:
             "contribuciones": valores.get("contribuciones", []),
             "interrumpido": interrumpido,
             "instruccion_pendiente": pendiente,
+            "motivo_aprobacion": motivo,
             "hilo_id": hilo_id,
+            # Los dos números del costo viajan al trabajo para que se puedan ver desde la API
+            # (GET /tareas/{id}): el estimado al arrancar y lo gastado de verdad hasta ahora.
+            "costo_estimado": valores.get("costo_estimado") or self.costo_estimado or 0.0,
+            "costo_acumulado": valores.get("costo_acumulado") or 0.0,
         }

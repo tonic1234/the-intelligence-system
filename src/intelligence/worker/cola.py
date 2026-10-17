@@ -74,6 +74,14 @@ class ColaRedis:
                 datos["pasos"] = int(datos["pasos"])
             except (TypeError, ValueError):
                 datos["pasos"] = 0
+        # Redis guarda todo como texto: los costos vuelven a número para que la API los publique
+        # como número y no como una cadena.
+        for campo in ("costo_estimado", "costo_acumulado"):
+            if datos.get(campo) is not None:
+                try:
+                    datos[campo] = float(datos[campo])
+                except (TypeError, ValueError):
+                    datos.pop(campo, None)
         return datos
 
     async def actualizar(self, job_id: str, estado: EstadoJob, **campos) -> dict:

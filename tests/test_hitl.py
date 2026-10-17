@@ -77,6 +77,26 @@ async def test_la_tarea_critica_queda_esperando_aprobacion(cola):
     assert datos["hilo_id"] == "hilo-1"
 
 
+async def test_el_motivo_de_la_pausa_queda_guardado_con_el_trabajo(cola):
+    """Quien aprueba tiene que ver QUÉ REGLA frenó el trabajo, no sólo que frenó."""
+
+    async def ejecutor_con_motivo(pregunta: str, reanudacion: dict | None = None) -> dict:
+        return {
+            "resultado": None,
+            "pasos": 0,
+            "contribuciones": [],
+            "interrumpido": True,
+            "instruccion_pendiente": "publicar en el portal",
+            "motivo_aprobacion": "el pedido pide una acción con efecto ('publicar')",
+            "hilo_id": "hilo-3",
+        }
+
+    job_id = await cola.crear(pregunta=PREGUNTA)
+    datos = await procesar_job(job_id, cola, ejecutor_con_motivo)
+    assert datos["estado"] == EstadoJob.ESPERANDO_APROBACION.value
+    assert datos["motivo_aprobacion"] == "el pedido pide una acción con efecto ('publicar')"
+
+
 async def test_una_tarea_normal_termina_sin_pausar(cola):
     async def ejecutor_normal(pregunta: str, reanudacion: dict | None = None) -> dict:
         return {"resultado": "listo", "pasos": 1, "contribuciones": [], "interrumpido": False,

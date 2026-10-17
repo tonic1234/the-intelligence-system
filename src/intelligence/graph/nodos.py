@@ -17,6 +17,7 @@ from typing import Optional
 from langchain_core.messages import AIMessage, HumanMessage
 
 from intelligence.llm.cliente import mensaje_de_error, texto
+from intelligence.graph.costos import costo_de_mensaje
 from intelligence.graph.estado import contribucion
 
 
@@ -81,6 +82,8 @@ def _correr_especialista(agente, state, nombre: str) -> dict:
 
     contenido = "\n\n".join(bloques)
 
+    gastado = 0.0
+
     # Un especialista que se cae no puede tumbar el grafo: si la llamada al modelo falla, el
     # aporte vuelve marcado como ERROR (con el mensaje traducido por `mensaje_de_error`, no
     # con un volcado de excepción) y el supervisor decide si lo manda de nuevo o cierra. Es
@@ -97,11 +100,15 @@ def _correr_especialista(agente, state, nombre: str) -> dict:
         respuesta = f"ERROR: {mensaje_de_error(exc)}"
     else:
         respuesta = texto(resultado["messages"][-1])
+        # Lo que costó este aporte, leído del uso que reporta el modelo. Se acumula en el estado
+        # para que la regla de costo del HITL tenga un número real y no una promesa.
+        gastado = costo_de_mensaje(resultado["messages"][-1])
 
     return {
         "messages": [AIMessage(content=respuesta, name=nombre)],
         "contribuciones": [contribucion(nombre, respuesta)],
         "pasos": (state.get("pasos", 0) or 0) + 1,
+        "costo_acumulado": (state.get("costo_acumulado", 0.0) or 0.0) + gastado,
     }
 
 
@@ -163,4 +170,6 @@ def nodo_sintesis(state, llm=None) -> dict:
     return {
         "messages": [AIMessage(content=texto(respuesta), name="supervisor")],
         "task_completed": True,
+        # La síntesis también gasta tokens: se suma al acumulado del trabajo (ver costos.py).
+        "costo_acumulado": (state.get("costo_acumulado", 0.0) or 0.0) + costo_de_mensaje(respuesta),
     }
