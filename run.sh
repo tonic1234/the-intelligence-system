@@ -24,6 +24,10 @@ parar() {
     kill "$pid" 2>/dev/null || true
     rm -f "$archivo"
   done
+  if [ -f logs/phoenix.docker ]; then
+    docker rm -f tis-phoenix >/dev/null 2>&1 || true
+    rm -f logs/phoenix.docker
+  fi
   echo "API, worker y Phoenix detenidos."
 }
 
@@ -46,9 +50,32 @@ if ! python -c "import redis,sys; sys.exit(0 if redis.Redis.from_url('$REDIS_URL
 fi
 
 echo "arrancando Phoenix (dashboard de trazas)..."
-PHOENIX_HOST=127.0.0.1 PHOENIX_PORT="$PUERTO_PHOENIX" \
-  python -m phoenix.server.main serve >logs/phoenix.log 2>&1 &
-echo $! >logs/phoenix.pid
+if python -c "import phoenix.server.main" 2>/dev/null; then
+  PHOENIX_HOST=127.0.0.1 PHOENIX_PORT="$PUERTO_PHOENIX" \
+    python -m phoenix.server.main serve >logs/phoenix.log 2>&1 &
+  echo $! >logs/phoenix.pid
+elif command -v docker >/dev/null 2>&1; then
+  # El paquete de Phoenix no está instalado (no es requisito del camino base): se levanta el mismo
+  # dashboard en su contenedor, igual que Redis.
+  echo "  (el paquete de Phoenix no está instalado: lo levanto con Docker)"
+  docker rm -f tis-phoenix >/dev/null 2>&1 || true
+  docker run -d --rm --name tis-phoenix -p "$PUERTO_PHOENIX":6006 arizephoenix/phoenix:latest >/dev/null
+  echo "docker" >logs/phoenix.docker
+else
+  echo "  no tengo Phoenix (ni el paquete ni Docker): el sistema arranca SIN trazas y lo avisa por log"
+fi
+
+# Espero a que Phoenix conteste antes de arrancar la API y el worker. Tarda unos 40 segundos: si
+# los otros dos arrancan primero, el colector todavía no está y las primeras trazas se pierden.
+if [ ! -f logs/phoenix.docker ] || docker ps --format '{{.Names}}' | grep -q '^tis-phoenix$'; then
+  for _ in $(seq 1 60); do
+    if curl -fsS -o /dev/null "http://127.0.0.1:$PUERTO_PHOENIX/" 2>/dev/null; then
+      echo "  Phoenix contesta en el puerto $PUERTO_PHOENIX"
+      break
+    fi
+    sleep 1
+  done
+fi
 
 echo "arrancando la API..."
 uvicorn intelligence.main:app --host 0.0.0.0 --port "$PUERTO_API" >logs/api.log 2>&1 &

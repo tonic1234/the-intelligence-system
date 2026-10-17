@@ -21,6 +21,12 @@ services:
       retries: 5
 
   # Phoenix: el dashboard de trazas. Va con volumen para no perder el historial al reiniciar.
+  #
+  # El healthcheck es a mano porque la imagen NO trae shell ni curl (arranca en
+  # /usr/bin/python3.13): usa su propio intérprete para preguntar por el puerto. Medido contra la
+  # imagen real, Phoenix tarda unos 40 segundos en contestar, así que la API y el worker tienen que
+  # esperarlo: si arrancan antes, el colector está caído y las primeras trazas se pierden (es lo
+  # que marcó la devolución de la pre-entrega 7).
   phoenix:
     image: arizephoenix/phoenix:latest
     ports:
@@ -29,6 +35,16 @@ services:
       PHOENIX_WORKING_DIR: /mnt/phoenix
     volumes:
       - datos-phoenix:/mnt/phoenix
+    healthcheck:
+      test:
+        - CMD
+        - /usr/bin/python3.13
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:6006/', timeout=3)"
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 30s
 
   api:
     build: .
@@ -48,6 +64,8 @@ services:
       PINECONE_NAMESPACE: ${PINECONE_NAMESPACE:-politicas-internas}
     depends_on:
       redis:
+        condition: service_healthy
+      phoenix:
         condition: service_healthy
     volumes:
       - cache-huggingface:/root/.cache/huggingface
@@ -69,6 +87,8 @@ services:
       PINECONE_NAMESPACE: ${PINECONE_NAMESPACE:-politicas-internas}
     depends_on:
       redis:
+        condition: service_healthy
+      phoenix:
         condition: service_healthy
     volumes:
       - cache-huggingface:/root/.cache/huggingface
