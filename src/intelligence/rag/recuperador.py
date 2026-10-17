@@ -141,7 +141,13 @@ def build_hybrid_retriever(k: int = TOP_K):
     try:
         retriever_vectorial = build_vector_retriever(k)
     except Exception as exc:  # si la nube falla, seguimos con la parte léxica
-        logger.warning("No pude armar la rama vectorial (%s); sigo con BM25", exc)
+        # El mensaje dice QUÉ instalar cuando el problema es que faltan los embeddings locales:
+        # sin eso, quien clone el repo ve "No module named 'langchain_huggingface'" y no sabe que
+        # hay un archivo de requisitos aparte (es el camino liviano que pide la devolución de PE7).
+        pista = ""
+        if "langchain_huggingface" in str(exc) or "sentence_transformers" in str(exc):
+            pista = ": los embeddings locales se instalan con pip install -r requirements-embeddings.txt"
+        logger.warning("No pude armar la rama vectorial (%s); sigo con BM25%s", exc, pista)
         return retriever_bm25
 
     from langchain_classic.retrievers import EnsembleRetriever

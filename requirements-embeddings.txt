@@ -1,0 +1,14 @@
+# Lo que la rama VECTORIAL del recuperador necesita y el camino base NO.
+#
+#   pip install -r requirements-embeddings.txt
+#
+# `sentence-transformers` trae torch: son cientos de megas y varios minutos de instalación. Sólo
+# hacen falta si vas a correr en modo híbrido contra Pinecone con los embeddings LOCALES. El
+# sistema sin esto funciona igual: si no encuentra estas dos librerías, el recuperador queda en
+# modo léxico (BM25) y lo avisa por log y por pantalla, en vez de fallar.
+#
+# El motivo de dejarlos afuera del requirements base está en la devolución de la pre-entrega 7:
+# instalarlos en el camino crítico hacía que una instalación desde cero no terminara en 10 minutos,
+# y sin instalación no se pueden correr las pruebas.
+langchain-huggingface>=1.2
+sentence-transformers>=6.0
