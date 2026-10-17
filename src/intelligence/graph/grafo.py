@@ -49,6 +49,12 @@ def _pregunta_del_usuario(state) -> str:
 def nodo_aprobacion(state, costo_estimado: float | None = None) -> dict:
     """Pausa el grafo si lo que se va a hacer es crítico. Si no, deja pasar sin tocar nada.
 
+    Se evalúa el PEDIDO DE LA PERSONA, no la instrucción que redactó el supervisor: esa es una
+    descripción del trabajo y puede nombrar acciones sin pedirlas (fue una de las observaciones de
+    la devolución de la pre-entrega 7: "resumí el archivo de onboarding" pausaba por la palabra
+    "archivo"). El supervisor tiene su propia vía para pedir la pausa, y es aditiva: su
+    clasificación estructurada (`accion_con_efectos`) la agrega, nunca la quita.
+
     La aprobación se pide UNA vez por trabajo: si ya se aprobó, las rondas siguientes del
     supervisor pasan de largo. (Sin esto, el grafo volvía a pedir permiso en cada ronda: el
     pedido original sigue diciendo "publicá" y nunca se terminaba.)
@@ -61,11 +67,12 @@ def nodo_aprobacion(state, costo_estimado: float | None = None) -> dict:
     if state.get("aprobado_en_el_hilo"):
         return {}
 
-    # Se mira la instrucción que redactó el supervisor Y lo que pidió la persona: si el pedido
-    # original es "publicá el resumen...", la acción es sensible aunque la instrucción la
-    # reformule el supervisor.
-    a_evaluar = f"{state.get('instruccion') or ''} {_pregunta_del_usuario(state)}"
-    critica, motivo = es_critica(a_evaluar, costo_estimado)
+    critica, motivo = es_critica(
+        _pregunta_del_usuario(state),
+        costo_estimado=state.get("costo_estimado") if costo_estimado is None else costo_estimado,
+        costo_acumulado=state.get("costo_acumulado"),
+        accion_con_efectos=bool(state.get("accion_con_efectos")),
+    )
     if not critica:
         return {}
 

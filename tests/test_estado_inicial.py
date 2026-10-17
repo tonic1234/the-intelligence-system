@@ -24,6 +24,11 @@ CAMPOS_ESPERADOS = {
     "task_completed",
     "validacion",
     "reintentos",
+    # Los tres del control humano: el costo estimado del pedido, lo gastado hasta ahora y la
+    # clasificación estructurada del supervisor (ver graph/costos.py y graph/aprobacion.py).
+    "costo_estimado",
+    "costo_acumulado",
+    "accion_con_efectos",
 }
 
 

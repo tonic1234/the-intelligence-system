@@ -53,8 +53,33 @@ class AgentState(MessagesState):
     # Cuántas veces el validador mandó a refinar: la segunda red del corte.
     reintentos: int
 
+    # Lo que se estima que va a costar el trabajo, calculado del pedido al arrancar (ver costos.py).
+    # El HITL lo usa como una de sus reglas; antes llegaba siempre vacío y la regla no se activaba.
+    costo_estimado: float
 
-def estado_inicial(pregunta: str) -> dict:
+    # Lo que se gastó de verdad hasta ahora, sumado del uso que reporta el modelo en cada paso.
+    costo_acumulado: float
+
+    # Clasificación estructurada del supervisor: si la tarea delegada implica una acción con
+    # efectos. Puede AGREGAR una pausa, nunca quitarla.
+    accion_con_efectos: bool
+
+
+def estado_inicial(
+    pregunta: str, costo_estimado: float | None = None, modelo: str | None = None
+) -> dict:
+    """El estado con el que arranca un trabajo.
+
+    El costo estimado se calcula acá, del pedido real: es el dato que la regla del HITL mira para
+    decidir si un trabajo pide aprobación por lo que va a costar. Se puede forzar desde afuera
+    (corridas de prueba) pasándolo por parámetro.
+    """
+
+    if costo_estimado is None:
+        from intelligence.graph.costos import estimar_costo
+
+        costo_estimado = float(estimar_costo(pregunta, modelo=modelo)["costo"])
+
     return {
         "messages": [HumanMessage(content=pregunta)],
         "next_agent": None,
@@ -64,4 +89,7 @@ def estado_inicial(pregunta: str) -> dict:
         "task_completed": False,
         "validacion": None,
         "reintentos": 0,
+        "costo_estimado": float(costo_estimado),
+        "costo_acumulado": 0.0,
+        "accion_con_efectos": False,
     }

@@ -59,6 +59,12 @@ Reglas de delegación:
   otro especialista o FINISH.
 - Si se cumple la rúbrica, elegí "FINISH".
 
+Sobre `accion_con_efectos`: marcalo en True sólo si lo que le pedís al especialista implica una
+acción con efectos sobre algo (enviar, publicar, escribir, borrar, firmar, pagar, transferir,
+desplegar, modificar o actualizar un documento). Consultar, buscar, resumir y calcular NO son
+acciones con efectos. Esto no reemplaza a la regla del sistema: sólo sirve para agregar una pausa
+de aprobación humana cuando vos ves un efecto que el texto no dice con todas las letras.
+
 En `instruccion` escribí, en una o dos frases, QUÉ tiene que hacer exactamente el agente
 que elegiste. Esa instrucción es la única que va a recibir el especialista, así que tiene
 que ser concreta, autosuficiente y de SU oficio:
@@ -89,6 +95,16 @@ class DecisionSupervisor(BaseModel):
     razon: str = Field(
         min_length=5,
         description="Justificación breve de la decisión (por qué ese agente y no otro)",
+    )
+    accion_con_efectos: bool = Field(
+        default=False,
+        description=(
+            "True SOLO si lo que le pedís al especialista implica una acción con efectos sobre "
+            "algo (enviar, publicar, escribir, borrar, firmar, pagar, transferir, desplegar, "
+            "modificar, actualizar un documento). False si es consultar, buscar, resumir o "
+            "calcular. Si dudás, dejalo en False: el sistema tiene su propia regla para las "
+            "acciones y esto sólo sirve para agregar una pausa, nunca para evitarla."
+        ),
     )
 
     # Validación explícita, no decorativa: una delegación SIN instrucción deja al especialista
@@ -190,6 +206,7 @@ def _corregir_decision(state, decision: DecisionSupervisor) -> DecisionSuperviso
                 next=elegido,
                 instruccion=INSTRUCCION_POR_DEFECTO[elegido],
                 razon=f"El validador dice que falta {elegido}: no se cierra todavía.",
+                accion_con_efectos=decision.accion_con_efectos,
             )
         return decision
 
@@ -202,6 +219,9 @@ def _corregir_decision(state, decision: DecisionSupervisor) -> DecisionSuperviso
             next=elegido,
             instruccion=INSTRUCCION_POR_DEFECTO[elegido],
             razon=f"Corrijo la delegación: {decision.next} ya aportó y falta {elegido}.",
+            # Si el supervisor había marcado que la tarea tiene efectos, la corrección no lo borra:
+            # la pausa se puede agregar, nunca quitar por el camino.
+            accion_con_efectos=decision.accion_con_efectos,
         )
     return decision
 
@@ -229,4 +249,7 @@ def nodo_supervisor(state, supervisor: Optional[Supervisor] = None) -> dict:
         "next_agent": decision.next,
         "instruccion": decision.instruccion,
         "task_completed": decision.next == "FINISH",
+        # La clasificación estructurada viaja al estado: el nodo de aprobación la puede usar para
+        # AGREGAR una pausa (nunca para evitarla, ver graph/aprobacion.py).
+        "accion_con_efectos": bool(decision.accion_con_efectos),
     }
