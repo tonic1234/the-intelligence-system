@@ -67,3 +67,24 @@ def test_sin_endpoint_de_trazas_arranca_igual_pero_lo_declara(monkeypatch):
 
     assert ajustes.trazas_activas is False
     assert "trazas=apagadas" in ajustes.resumen()
+
+
+def test_avisa_cuando_la_pata_vectorial_no_esta(monkeypatch, caplog):
+    """Con Pinecone configurado pero sin los embeddings locales, el arranque lo tiene que decir.
+
+    Lo vi en el contenedor de Docker: el resumen informaba "recuperación híbrida" mientras la
+    búsqueda corría en BM25, porque los embeddings van aparte de los requisitos base.
+    """
+
+    from intelligence.config import settings
+
+    monkeypatch.setenv("LLM_PROVIDER", "gemini")
+    monkeypatch.setenv("GOOGLE_API_KEY", "clave-de-prueba")
+    monkeypatch.setenv("PINECONE_API_KEY", "pcsk_de_prueba")
+    monkeypatch.setattr(settings, "embeddings_locales_disponibles", lambda: False)
+
+    with caplog.at_level("WARNING"):
+        ajustes = preparar_arranque(usar_env_del_repo=False)
+
+    assert "recuperacion=lexico" in ajustes.resumen()
+    assert any("requirements-embeddings.txt" in r.message for r in caplog.records)

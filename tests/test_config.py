@@ -109,6 +109,28 @@ def test_con_pinecone_el_modo_es_hibrido(monkeypatch):
     assert cargar().modo_recuperacion == "hibrido"
 
 
+def test_el_modo_efectivo_mira_si_los_embeddings_estan_instalados(monkeypatch):
+    """Configurado y efectivo no son lo mismo: con la clave pero sin las librerías, la búsqueda
+    corre en BM25 y el arranque tiene que decirlo (antes informaba "híbrido" igual)."""
+
+    from intelligence.config import settings
+
+    monkeypatch.setenv("LLM_PROVIDER", "gemini")
+    monkeypatch.setenv("GOOGLE_API_KEY", "clave-de-prueba")
+    monkeypatch.setenv("PINECONE_API_KEY", "pcsk_de_prueba")
+
+    monkeypatch.setattr(settings, "embeddings_locales_disponibles", lambda: True)
+    ajustes = cargar()
+    assert ajustes.modo_recuperacion == "hibrido"
+    assert ajustes.modo_recuperacion_efectivo == "hibrido"
+
+    monkeypatch.setattr(settings, "embeddings_locales_disponibles", lambda: False)
+    ajustes = cargar()
+    assert ajustes.modo_recuperacion == "hibrido"
+    assert ajustes.modo_recuperacion_efectivo == "lexico"
+    assert "recuperacion=lexico" in ajustes.resumen()
+
+
 def test_la_concurrencia_tiene_que_ser_positiva(monkeypatch):
     monkeypatch.setenv("LLM_PROVIDER", "gemini")
     monkeypatch.setenv("GOOGLE_API_KEY", "clave-de-prueba")

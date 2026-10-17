@@ -157,13 +157,18 @@ def build_hybrid_retriever(k: int = TOP_K):
 
 
 def nombre_modo(retriever) -> str:
-    """Nombre legible del modo de recuperación, leído del retriever real."""
+    """Nombre legible del modo de recuperación, leído del retriever real.
+
+    El modo léxico tiene DOS causas posibles y conviene no confundirlas: no hay clave de Pinecone,
+    o hay clave pero faltan los embeddings locales. Antes el texto decía siempre "sin Pinecone", y
+    en el contenedor (donde los embeddings van aparte) eso era una razón equivocada.
+    """
 
     tipo = type(retriever).__name__
     if tipo == "EnsembleRetriever":
         return "híbrido (BM25 + vectorial sobre Pinecone)"
     if tipo == "BM25Retriever":
-        return "léxico (solo BM25, sin Pinecone)"
+        return "léxico (solo BM25, sin la pata vectorial)"
     return f"personalizado ({tipo})"
 
 

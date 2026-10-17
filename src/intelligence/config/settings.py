@@ -18,6 +18,7 @@ claves de otra carpeta y tardé en darme cuenta.
 
 from __future__ import annotations
 
+import importlib.util
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -75,9 +76,27 @@ class Ajustes:
 
     @property
     def modo_recuperacion(self) -> str:
-        """Con Pinecone el recuperador es híbrido (BM25 + vectorial); sin él, sólo léxico."""
+        """Con Pinecone configurado el recuperador va híbrido (BM25 + vectorial); sin él, léxico.
+
+        Ojo: esto es lo CONFIGURADO. Las librerías de los embeddings locales están fuera del camino
+        base (ver `requirements-embeddings.txt`), así que un sistema puede tener la clave de Pinecone
+        y no poder armar la pata vectorial. Para eso está `modo_recuperacion_efectivo`.
+        """
 
         return "hibrido" if self.pinecone_api_key else "lexico"
+
+    @property
+    def modo_recuperacion_efectivo(self) -> str:
+        """El modo que va a correr DE VERDAD, mirando si el proceso puede importar los embeddings.
+
+        La diferencia entre configurado y efectivo es la que hacía que el log dijera "híbrido" con
+        la búsqueda corriendo en BM25. Ahora el arranque informa el efectivo y, si no coinciden,
+        avisa qué falta instalar.
+        """
+
+        if not self.pinecone_api_key:
+            return "lexico"
+        return "hibrido" if embeddings_locales_disponibles() else "lexico"
 
     @property
     def trazas_activas(self) -> bool:
@@ -88,10 +107,21 @@ class Ajustes:
 
         return (
             f"proveedor={self.proveedor} modelo={self.modelo} "
-            f"recuperacion={self.modo_recuperacion} "
+            f"recuperacion={self.modo_recuperacion_efectivo} "
             f"trazas={'activas' if self.trazas_activas else 'apagadas'} "
             f"concurrencia={self.worker_concurrencia} tope={self.job_timeout_segundos}s"
         )
+
+
+def embeddings_locales_disponibles() -> bool:
+    """Si el proceso puede importar los embeddings locales. Se mira la librería, no el `.env`.
+
+    `sentence-transformers` (y su torch) salieron del camino base: están en
+    `requirements-embeddings.txt` y sólo hacen falta para la pata vectorial. Esta función es la que
+    permite decir en el arranque si esa pata va a existir o no.
+    """
+
+    return importlib.util.find_spec("langchain_huggingface") is not None
 
 
 def _texto(nombre: str, por_defecto: str | None = None) -> str | None:

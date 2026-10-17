@@ -144,6 +144,11 @@ Los dos procesos validan el entorno al arrancar y dejan en el log en qué modo q
 INFO arrancando: proveedor=gemini modelo=gemini-flash-latest recuperacion=hibrido trazas=activas concurrencia=2
 ```
 
+Ese `recuperacion=` es el modo que va a correr de verdad, no el que está escrito en el `.env`: si hay
+clave de Pinecone pero el proceso no encuentra los embeddings locales, dice `lexico` y avisa qué
+instalar (`pip install -r requirements-embeddings.txt`). Lo agregué después de verlo en el contenedor:
+el resumen decía "híbrido" mientras la búsqueda corría en BM25.
+
 Se encola una consulta así:
 
 ```bash
@@ -314,7 +319,7 @@ Se saca en https://aistudio.google.com/apikey (tiene capa gratis).
 Si querés usar otro proveedor, cambiá LLM_PROVIDER (válidos: anthropic, gemini, openai).
 ```
 
-## Las pruebas (197, sin claves y sin red)
+## Las pruebas (199, sin claves y sin red)
 
 ```bash
 python -m pytest tests -q

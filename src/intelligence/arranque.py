@@ -30,4 +30,13 @@ def preparar_arranque(usar_env_del_repo: bool = True) -> Ajustes:
 
     ajustes = cargar_ajustes(usar_env_del_repo=usar_env_del_repo)
     log.info("arrancando: %s", ajustes.resumen())
+    if ajustes.modo_recuperacion != ajustes.modo_recuperacion_efectivo:
+        # El caso concreto: hay PINECONE_API_KEY pero el proceso no puede importar los embeddings
+        # locales (van aparte, en requirements-embeddings.txt). Sin este aviso, el arranque decía
+        # "híbrido" y la búsqueda corría en BM25: un modo que no es el que se informa.
+        log.warning(
+            "PINECONE_API_KEY está configurada pero no encuentro los embeddings locales: la "
+            "búsqueda va a correr en modo léxico. Se instalan con: "
+            "pip install -r requirements-embeddings.txt"
+        )
     return ajustes
